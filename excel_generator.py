@@ -852,9 +852,9 @@ def _build_compra(ws, lines, quote_number, first_data_row, n):
 
 
 # ── Helpers internos ──────────────────────────────────────────────────────────
+from openpyxl.utils import column_index_from_string
+
 def _col(letter):
-    """Convierte letra(s) de columna a número 1-based."""
-    from openpyxl.utils import column_index_from_string
     return column_index_from_string(letter)
 
 def _set(ws, row, col_letter, value, bg=WHITE, sz=9, align='left', fmt=None, wrap=False):
@@ -862,7 +862,6 @@ def _set(ws, row, col_letter, value, bg=WHITE, sz=9, align='left', fmt=None, wra
     _v(c, sz=sz, bg=bg, align=align, wrap=wrap)
     if fmt: c.number_format = fmt
     return c
-
 
 # ── FUNCIÓN PRINCIPAL ─────────────────────────────────────────────────────────
 def generate_internal_excel(lines, quote_number, output_path,
@@ -884,10 +883,12 @@ def generate_internal_excel(lines, quote_number, output_path,
     """
     # Extraer márgenes desde las líneas si ya fueron calculados por _apply_margins
     if lines and 'bp_margin' in lines[0]:
-        bp_margin      = lines[0].get('bp_margin', bp_margin)
-        ingram_margin  = lines[0].get('ingram_margin', ingram_margin)
-        cvr_renew_bp   = lines[0].get('cvr_renew_bp', cvr_renew_bp)
-        cvr_ontime_bp  = lines[0].get('cvr_ontime_bp', cvr_ontime_bp)
+        bp_margin      = lines[0].get('bp_margin',       bp_margin)
+        ingram_margin  = lines[0].get('ingram_margin',   ingram_margin)
+        cvr_renew_bp   = lines[0].get('cvr_renew_bp',    cvr_renew_bp)
+        cvr_ontime_bp  = lines[0].get('cvr_ontime_bp',   cvr_ontime_bp)
+        # Estos dos no los guardaba _apply_margins — los tomamos del parámetro
+        # (ya vienen correctos desde _build_quote_files con el Bug 1 corregido)
 
     wb = Workbook()
 
