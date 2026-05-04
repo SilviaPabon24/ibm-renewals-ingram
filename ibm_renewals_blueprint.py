@@ -116,7 +116,8 @@ def _extract_customer_short(site_str):
 
 
 def _build_quote_files(lines, quote_num, bp_margin, ingram_margin,
-                       cvr_renew_bp, cvr_ontime_bp):
+                       cvr_renew_bp, cvr_renew_ingram,
+                       cvr_ontime_bp, cvr_ontime_ingram):
     """Genera PDF + Excel + Planilla para un quote y retorna sus rutas."""
     year           = datetime.now().year
     reseller_name  = _extract_reseller_name(lines[0].get('reseller', ''))
@@ -133,7 +134,13 @@ def _build_quote_files(lines, quote_num, bp_margin, ingram_margin,
                        cvr_ontime_bp=cvr_ontime_bp)
 
     excel_path = os.path.join(OUTPUT_DIR, f"{_safe_filename(base_name)}.xlsx")
-    generate_internal_excel(lines, quote_num, excel_path)
+    generate_internal_excel(lines, quote_num, excel_path,
+                            bp_margin=bp_margin,
+                            ingram_margin=ingram_margin,
+                            cvr_renew_bp=cvr_renew_bp,
+                            cvr_renew_ingram=cvr_renew_ingram,
+                            cvr_ontime_bp=cvr_ontime_bp,
+                            cvr_ontime_ingram=cvr_ontime_ingram,)
 
     planilla_path = None
     if check_coverage_errors(lines):
@@ -251,7 +258,8 @@ def generate_quote():
         for quote_num, lines in groups.items():
             reseller_name, customer_short, pdf_p, excel_p, planilla_p = \
                 _build_quote_files(lines, quote_num, bp_margin, ingram_margin,
-                                   cvr_renew_bp, cvr_ontime_bp)
+                                   cvr_renew_bp, cvr_renew_ingram,
+                                   cvr_ontime_bp, cvr_ontime_ingram)
             entries.append((reseller_name, customer_short, pdf_p, excel_p, planilla_p))
 
         q0       = list(groups.keys())[0]
@@ -357,7 +365,9 @@ def generate_bulk():
                                        q_cvr_ot, q_cvr_oi)
 
                 reseller_name, customer_short, pdf_p, excel_p, planilla_p = \
-                    _build_quote_files(lines, qn, q_bp, q_ingram, q_cvr_r, q_cvr_ot)
+                    _build_quote_files(lines, qn, q_bp, q_ingram,
+                                       q_cvr_r, q_cvr_ri,
+                                       q_cvr_ot, q_cvr_oi)
 
                 # Carpeta: {CANAL}/{AÑO}/
                 folder = f"{_safe_filename(reseller_name)}/{year}/"
