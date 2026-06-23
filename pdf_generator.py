@@ -1,40 +1,54 @@
 """
 Generador de cotizaciones PDF — Ingram Micro IBM S&S
-Estructura idéntica a la hoja Cotización del Excel generado:
-  1. Encabezado (Canal, Cliente, Fabricante, Fecha, SBID)
-  2. Resumen Propuesta Económica (tabla líneas)
-  3. Total + Nota de descuento
-  4. Detalle de incentivos (OnTime + Renew por línea)
-  5. Condiciones generales + firma
+Replica exactamente el formato del PDF de referencia:
+- Logo Ingram Micro (izquierda) + Logo IBM Distributor (derecha) en cada página
+- Tabla info: Canal, Cliente Final, Fabricante, Fecha / Solicitante, Celular, Mail
+- Resumen Propuesta Económica
+- Nota de descuento
+- Detalle de incentivos
+- Condiciones generales + página 2 con texto legal completo
 """
+
+import os
+import re
+from datetime import datetime, timedelta
+from typing import List, Dict, Any
 
 from reportlab.lib.pagesizes import letter
 from reportlab.lib import colors
 from reportlab.lib.styles import ParagraphStyle
 from reportlab.lib.units import inch
 from reportlab.platypus import (
-    SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle, HRFlowable, KeepTogether
+    SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle,
+    PageBreak, Image as RLImage
 )
 from reportlab.lib.enums import TA_LEFT, TA_CENTER, TA_RIGHT
-from datetime import datetime, timedelta
-from typing import List, Dict, Any
-import re
+from reportlab.platypus.flowables import HRFlowable
+
+# ── Rutas de logos ────────────────────────────────────────────────────────────
+_HERE = os.path.dirname(os.path.abspath(__file__))
+INGRAM_LOGO = os.path.join(_HERE, 'ingram_logo.png')
+IBM_LOGO    = os.path.join(_HERE, 'ibm_logo.png')
 
 # ── Paleta ────────────────────────────────────────────────────────────────────
-C_DARK  = colors.HexColor('#003366')
-C_BLUE  = colors.HexColor('#0066CC')
-C_LBLUE = colors.HexColor('#EBF3FF')
-C_LGRAY = colors.HexColor('#F8FAFC')
-C_MGRAY = colors.HexColor('#CBD5E1')
-C_DGRAY = colors.HexColor('#64748B')
-C_TEXT  = colors.HexColor('#1A2B3C')
-C_WHITE = colors.white
-C_IBM   = colors.HexColor('#054ADA')
-C_GREEN_BG = colors.HexColor('#F0FDF4')
-C_GREEN_TX = colors.HexColor('#166534')
-C_YELLOW   = colors.HexColor('#FFF9C4')
+C_DARK   = colors.HexColor('#003366')
+C_BLUE   = colors.HexColor('#0066CC')
+C_RED    = colors.HexColor('#CC0000')
+C_LBLUE  = colors.HexColor('#EBF3FF')
+C_LGRAY  = colors.HexColor('#F8FAFC')
+C_MGRAY  = colors.HexColor('#CBD5E1')
+C_DGRAY  = colors.HexColor('#64748B')
+C_TEXT   = colors.HexColor('#1A2B3C')
+C_WHITE  = colors.white
+C_BLACK  = colors.black
+C_BORDER = colors.HexColor('#C0C0C0')
 
+PAGE_W, PAGE_H = letter
+MARGIN_L = MARGIN_R = 0.6 * inch
+MARGIN_T = MARGIN_B = 0.5 * inch
+CONTENT_W = PAGE_W - MARGIN_L - MARGIN_R
 
+# ── Helpers ───────────────────────────────────────────────────────────────────
 def _extract_reseller_name(s):
     m = re.match(r'^\d+\s+(.+)', str(s or ''))
     return m.group(1).strip() if m else str(s or '')
@@ -44,359 +58,207 @@ def _extract_customer_name(s):
     return m.group(1).strip() if m else str(s or '')
 
 def _usd(v):
-    try:
-        return f'${float(v):,.2f}'
-    except:
-        return str(v)
+    try:    return f'$ {float(v):,.2f}'
+    except: return str(v)
 
 def _pct(v):
-    try:
-        return f'{float(v)*100:.1f}%'
-    except:
-        return str(v)
+    try:    return f'{float(v):.0f}%'
+    except: return str(v)
 
 def _parse_cov(cov, part):
     if ' To ' in str(cov):
-        return str(cov).split(' To ')[part].strip()
+        raw = str(cov).split(' To ')[part].strip()
+        try:
+            from datetime import datetime as dt
+            d = dt.strptime(raw, '%d %b %Y')
+            return d.strftime('%-d/%m/%Y')
+        except:
+            return raw
     return ''
-
-
-# ── Estilos ───────────────────────────────────────────────────────────────────
-def _styles():
-    def ps(name, **kw):
-        defaults = dict(fontName='Helvetica', fontSize=9, textColor=C_TEXT,
-                        leading=12, spaceAfter=0, spaceBefore=0)
-        defaults.update(kw)
-        return ParagraphStyle(name, **defaults)
-
-    return {
-        'title':     ps('title',    fontName='Helvetica-Bold', fontSize=13,
-                        textColor=C_WHITE,  alignment=TA_LEFT),
-        'subtitle':  ps('subtitle', fontName='Helvetica-Bold', fontSize=10,
-                        textColor=C_WHITE,  alignment=TA_LEFT),
-        'sec_hdr':   ps('sec_hdr',  fontName='Helvetica-Bold', fontSize=9,
-                        textColor=C_WHITE,  alignment=TA_LEFT),
-        'lbl':       ps('lbl',      fontName='Helvetica-Bold', fontSize=8,
-                        textColor=C_DGRAY),
-        'val':       ps('val',      fontName='Helvetica',      fontSize=9,
-                        textColor=C_TEXT),
-        'val_b':     ps('val_b',    fontName='Helvetica-Bold', fontSize=9,
-                        textColor=C_TEXT),
-        'th':        ps('th',       fontName='Helvetica-Bold', fontSize=7.5,
-                        textColor=C_WHITE,  alignment=TA_CENTER, leading=10),
-        'td':        ps('td',       fontName='Helvetica',      fontSize=7.5,
-                        textColor=C_TEXT,   leading=10),
-        'td_r':      ps('td_r',     fontName='Helvetica',      fontSize=7.5,
-                        textColor=C_TEXT,   alignment=TA_RIGHT, leading=10),
-        'td_b':      ps('td_b',     fontName='Helvetica-Bold', fontSize=7.5,
-                        textColor=C_TEXT,   alignment=TA_RIGHT, leading=10),
-        'td_dark':   ps('td_dark',  fontName='Helvetica-Bold', fontSize=8,
-                        textColor=C_WHITE,  alignment=TA_RIGHT, leading=10),
-        'td_dark_l': ps('td_dark_l',fontName='Helvetica-Bold', fontSize=8,
-                        textColor=C_WHITE,  alignment=TA_LEFT,  leading=10),
-        'note':      ps('note',     fontName='Helvetica',      fontSize=7.5,
-                        textColor=C_DGRAY,  leading=11),
-        'cond':      ps('cond',     fontName='Helvetica',      fontSize=7,
-                        textColor=C_DGRAY,  leading=10),
-        'firma':     ps('firma',    fontName='Helvetica-Bold', fontSize=8,
-                        textColor=C_BLUE),
-        'total_lbl': ps('total_lbl',fontName='Helvetica-Bold', fontSize=9,
-                        textColor=C_WHITE,  alignment=TA_RIGHT),
-        'total_val': ps('total_val',fontName='Helvetica-Bold', fontSize=10,
-                        textColor=C_WHITE,  alignment=TA_RIGHT),
-        'nd_lbl':    ps('nd_lbl',   fontName='Helvetica',      fontSize=8,
-                        textColor=C_DGRAY,  alignment=TA_LEFT),
-        'nd_val':    ps('nd_val',   fontName='Helvetica-Bold', fontSize=9,
-                        textColor=C_TEXT,   alignment=TA_RIGHT),
-    }
-
 
 def _ts(*cmds):
     return TableStyle(list(cmds))
 
+def _ps(name, **kw):
+    defaults = dict(fontName='Helvetica', fontSize=9, textColor=C_TEXT,
+                    leading=12, spaceAfter=0, spaceBefore=0)
+    defaults.update(kw)
+    return ParagraphStyle(name, **defaults)
 
-# ── Sección 1: Encabezado ─────────────────────────────────────────────────────
-def _build_header(renewals, customer_name, quote_number, s):
-    first   = renewals[0] if renewals else {}
-    reseller = _extract_reseller_name(first.get('reseller', ''))
-    sbid     = quote_number or first.get('quote_number', '')
-    due      = first.get('renewal_due_date', '')
-    today    = datetime.now().strftime('%d/%m/%Y')
-    valid_dt = (datetime.now() + timedelta(days=30)).strftime('%d %b %Y')
+# ── Estilos ───────────────────────────────────────────────────────────────────
+def _styles():
+    return {
+        'sec_red':   _ps('sec_red',  fontName='Helvetica-Bold', fontSize=9, textColor=C_RED),
+        'th':        _ps('th',       fontName='Helvetica-Bold', fontSize=7.5,
+                         textColor=C_WHITE, alignment=TA_CENTER, leading=10),
+        'td':        _ps('td',       fontSize=7.5, leading=10),
+        'td_c':      _ps('td_c',     fontSize=7.5, leading=10, alignment=TA_CENTER),
+        'td_r':      _ps('td_r',     fontSize=7.5, leading=10, alignment=TA_RIGHT),
+        'td_dark':   _ps('td_dark',  fontName='Helvetica-Bold', fontSize=8,
+                         textColor=C_WHITE, alignment=TA_RIGHT, leading=10),
+        'td_dark_l': _ps('td_dark_l',fontName='Helvetica-Bold', fontSize=8,
+                         textColor=C_WHITE, alignment=TA_LEFT, leading=10),
+        'cond':      _ps('cond',     fontSize=7.5, textColor=C_TEXT, leading=11),
+    }
 
-    # Bloque logo + título
-    logo_data = [[
-        Table([[
-            [Paragraph('INGRAM <font color="#003366">MICRO</font>', ParagraphStyle(
-                'logo', fontName='Helvetica-Bold', fontSize=20, textColor=C_BLUE))],
-            [Paragraph('Technology Solutions', ParagraphStyle(
-                'logsub', fontName='Helvetica', fontSize=8, textColor=C_DGRAY))],
-            [Spacer(1, 3)],
-            [Paragraph('  IBM Authorized Reseller  ', ParagraphStyle(
-                'ibmbadge', fontName='Helvetica-Bold', fontSize=7.5,
-                textColor=C_WHITE, backColor=C_IBM))],
-        ]], colWidths=[2.8*inch]),
-        Table([[
-            [Paragraph('COTIZACIÓN IBM S&amp;S', ParagraphStyle(
-                'cot_hdr', fontName='Helvetica-Bold', fontSize=10,
-                textColor=C_DARK, alignment=TA_RIGHT))],
-            [Paragraph(f'Fecha: {today}', ParagraphStyle(
-                'cot_f', fontName='Helvetica', fontSize=8,
-                textColor=C_DGRAY, alignment=TA_RIGHT))],
-            [Paragraph(f'SBID / Quote: <b>{sbid}</b>', ParagraphStyle(
-                'cot_q', fontName='Helvetica', fontSize=8.5,
-                textColor=C_TEXT, alignment=TA_RIGHT))],
-            [Paragraph(f'Canal: <b>{reseller}</b>', ParagraphStyle(
-                'cot_c', fontName='Helvetica', fontSize=8.5,
-                textColor=C_TEXT, alignment=TA_RIGHT))],
-            [Paragraph(f'Cliente: <b>{customer_name}</b>', ParagraphStyle(
-                'cot_cl', fontName='Helvetica', fontSize=8.5,
-                textColor=C_TEXT, alignment=TA_RIGHT))],
-        ]], colWidths=[4.0*inch]),
-    ]]
-    hdr_tbl = Table(logo_data, colWidths=[2.8*inch, 4.0*inch])
-    hdr_tbl.setStyle(_ts(
-        ('VALIGN',       (0,0), (-1,-1), 'TOP'),
+# ── Bloque de logos ───────────────────────────────────────────────────────────
+def _logo_header():
+    ingram_img = RLImage(INGRAM_LOGO, width=1.8*inch, height=0.38*inch)
+    ibm_img    = RLImage(IBM_LOGO,    width=0.9*inch, height=0.53*inch)
+    tbl = Table(
+        [[ingram_img, '', ibm_img]],
+        colWidths=[2.0*inch, 3.5*inch, 1.2*inch]
+    )
+    tbl.setStyle(_ts(
+        ('VALIGN',       (0,0), (-1,-1), 'MIDDLE'),
+        ('ALIGN',        (2,0), (2,0),   'RIGHT'),
         ('LEFTPADDING',  (0,0), (-1,-1), 0),
         ('RIGHTPADDING', (0,0), (-1,-1), 0),
         ('TOPPADDING',   (0,0), (-1,-1), 0),
         ('BOTTOMPADDING',(0,0), (-1,-1), 0),
     ))
+    return tbl
 
-    # Banda azul con título
-    title_tbl = Table(
-        [[Paragraph('IBM Software Subscription &amp; Support (S&amp;S) — Renovación', s['subtitle'])]],
-        colWidths=[6.8*inch]
-    )
-    title_tbl.setStyle(_ts(
-        ('BACKGROUND',   (0,0), (-1,-1), C_DARK),
-        ('TOPPADDING',   (0,0), (-1,-1), 7),
-        ('BOTTOMPADDING',(0,0), (-1,-1), 7),
-        ('LEFTPADDING',  (0,0), (-1,-1), 10),
-    ))
+# ── Tabla de info ─────────────────────────────────────────────────────────────
+def _info_table(reseller, customer, fecha, solicitante, celular, mail):
+    def lbl(txt):
+        return Paragraph(f'<b>{txt}</b>', _ps('lbl2', fontName='Helvetica-Bold',
+                                               fontSize=8, textColor=C_TEXT))
+    def val(txt, link=False):
+        if link and txt:
+            return Paragraph(f'<font color="#0066CC">{txt}</font>',
+                             _ps('v2', fontSize=8, textColor=C_BLUE))
+        return Paragraph(str(txt or ''), _ps('v2', fontSize=8, textColor=C_TEXT))
 
-    # Info meta (4 celdas: cliente, canal, moneda, válida hasta)
-    meta_data = [[
-        _meta_block('CLIENTE',      customer_name,  s),
-        _meta_block('CANAL',        reseller,       s),
-        _meta_block('MONEDA',       'USD',          s),
-        _meta_block('VÁLIDA HASTA', valid_dt,       s),
-    ]]
-    meta_tbl = Table(meta_data, colWidths=[1.9*inch, 1.9*inch, 1.1*inch, 1.9*inch])
-    meta_tbl.setStyle(_ts(
-        ('BACKGROUND',   (0,0), (-1,-1), C_LBLUE),
-        ('TOPPADDING',   (0,0), (-1,-1), 7),
-        ('BOTTOMPADDING',(0,0), (-1,-1), 7),
-        ('LEFTPADDING',  (0,0), (-1,-1), 10),
+    data = [
+        [lbl('Canal:'),         val(reseller),   lbl('Solicitante:'), val(solicitante)],
+        [lbl('Cliente Final:'), val(customer),   lbl('Celular:'),     val(celular)],
+        [lbl('Fabricante:'),    val('IBM - International Business Mach'),
+                                                 lbl('Mail:'),        val(mail, link=True)],
+        [lbl('Fecha:'),         val(fecha),      '',                  ''],
+    ]
+    tbl = Table(data, colWidths=[1.0*inch, 3.0*inch, 0.9*inch, 2.1*inch])
+    tbl.setStyle(_ts(
+        ('BOX',          (0,0), (-1,-1), 0.8, C_BORDER),
+        ('INNERGRID',    (0,0), (-1,-1), 0.3, C_MGRAY),
+        ('TOPPADDING',   (0,0), (-1,-1), 5),
+        ('BOTTOMPADDING',(0,0), (-1,-1), 5),
+        ('LEFTPADDING',  (0,0), (-1,-1), 6),
         ('RIGHTPADDING', (0,0), (-1,-1), 6),
-        ('VALIGN',       (0,0), (-1,-1), 'TOP'),
-        ('LINEAFTER',    (0,0), (2,0), 0.4, C_MGRAY),
+        ('VALIGN',       (0,0), (-1,-1), 'MIDDLE'),
+        ('SPAN',         (2,3), (3,3)),
     ))
+    return tbl
 
-    # Texto SBID
-    sbid_txt = Paragraph(
-        f'A continuación se comparten precios aprobados bajo SBID <b>{sbid}</b> para el cliente <b>{customer_name}</b>.',
-        ParagraphStyle('sbid_p', fontName='Helvetica', fontSize=8.5,
-                       textColor=C_TEXT, leading=12)
-    )
-
-    return [hdr_tbl, Spacer(1, 6), title_tbl, Spacer(1, 6), meta_tbl, Spacer(1, 8), sbid_txt]
-
-
-def _meta_block(label, value, s):
-    return Table([[
-        Paragraph(label, ParagraphStyle('ml', fontName='Helvetica', fontSize=7,
-                                        textColor=C_BLUE, spaceAfter=2)),
-        Paragraph(value, ParagraphStyle('mv', fontName='Helvetica-Bold', fontSize=8.5,
-                                        textColor=C_TEXT)),
-    ]], colWidths=[None])
-
-
-# ── Sección 2: Resumen Propuesta Económica ────────────────────────────────────
-def _build_tabla_lineas(renewals, bp_margin_percent, cvr_renew_bp, cvr_ontime_bp, s):
-    """
-    Idéntico a la hoja Cotización del Excel:
-    Fecha Inicio | Fecha Fin | Parte Número | Descripción | Qty |
-    Precio Cliente Final (MEP) | Margen Canal | V/unit Canal | Costo Total Canal
-    """
-    # Encabezado de sección
-    sec = Table(
-        [[Paragraph('RESUMEN PROPUESTA ECONÓMICA', s['sec_hdr'])]],
-        colWidths=[6.8*inch]
-    )
-    sec.setStyle(_ts(
-        ('BACKGROUND',   (0,0), (-1,-1), C_DARK),
-        ('TOPPADDING',   (0,0), (-1,-1), 6),
-        ('BOTTOMPADDING',(0,0), (-1,-1), 6),
-        ('LEFTPADDING',  (0,0), (-1,-1), 10),
-    ))
-
-    hdrs = ['Fecha\nInicio', 'Fecha\nFin', 'Parte Número', 'Descripción',
-            'Qty', 'Precio Cliente\nFinal (MEP)', 'Margen\nCanal',
-            'V/unit\nCanal', 'Costo Total\nCanal']
-    col_w = [0.7*inch, 0.7*inch, 0.85*inch, 2.0*inch,
-             0.35*inch, 0.85*inch, 0.55*inch, 0.75*inch, 0.9*inch]
-
-    rows = [[Paragraph(h, s['th']) for h in hdrs]]
-
-    total_mep   = 0.0
-    total_canal = 0.0
+# ── Tabla principal de líneas ─────────────────────────────────────────────────
+def _tabla_lineas(renewals, bp_margin_percent, s):
+    hdrs   = ['Fecha de Inicio', 'Fecha de Fin', 'Parte Número', 'Descripción',
+              'Cantidad', 'Precio Cliente\nFinal (MEP)', 'Margen Canal',
+              'V/unit Canal', 'Costo Total\nCanal']
+    col_w  = [0.65*inch, 0.65*inch, 0.8*inch, 2.1*inch,
+              0.45*inch, 0.8*inch, 0.55*inch, 0.7*inch, 0.8*inch]
+    rows   = [[Paragraph(h, s['th']) for h in hdrs]]
+    total_mep = total_canal = 0.0
 
     for item in renewals:
-        mep  = float(item.get('extended_price', 0))
-        qty  = int(item.get('quantity', 1))
-        cc   = float(item.get('costo_canal', round(mep * (1 - bp_margin_percent/100), 2)))
+        mep    = float(item.get('extended_price', 0))
+        qty    = int(item.get('quantity', 1))
+        cc     = float(item.get('costo_canal', round(mep * (1 - bp_margin_percent/100), 2)))
         v_unit = round(cc / qty, 2) if qty else 0
-
-        cov = str(item.get('coverage_dates', ''))
+        cov    = str(item.get('coverage_dates', ''))
         inicio = _parse_cov(cov, 0) or str(item.get('renewal_line_item_start_date', ''))
         fin    = _parse_cov(cov, 1) or str(item.get('renewal_due_date', ''))
 
-        desc = str(item.get('part_description', ''))
-
         rows.append([
-            Paragraph(inicio, s['td']),
-            Paragraph(fin,    s['td']),
+            Paragraph(inicio,  s['td']),
+            Paragraph(fin,     s['td']),
             Paragraph(str(item.get('part_number', '')), s['td']),
-            Paragraph(desc,   s['td']),
-            Paragraph(str(qty), ParagraphStyle('ctr', fontName='Helvetica', fontSize=7.5,
-                                               textColor=C_TEXT, alignment=TA_CENTER)),
+            Paragraph(str(item.get('part_description', '')), s['td']),
+            Paragraph(str(qty), s['td_c']),
             Paragraph(_usd(mep),    s['td_r']),
-            Paragraph(_pct(bp_margin_percent/100), s['td_r']),
+            Paragraph(_pct(bp_margin_percent), s['td_c']),
             Paragraph(_usd(v_unit), s['td_r']),
             Paragraph(_usd(cc),     s['td_r']),
         ])
         total_mep   += mep
         total_canal += cc
 
-    # Fila TOTAL
     rows.append([
-        Paragraph('', s['td']),
-        Paragraph('', s['td']),
-        Paragraph('', s['td']),
+        Paragraph('', s['td']), Paragraph('', s['td']), Paragraph('', s['td']),
         Paragraph('TOTAL:', s['td_dark_l']),
         Paragraph('', s['td']),
         Paragraph(_usd(total_mep),   s['td_dark']),
-        Paragraph('', s['td']),
-        Paragraph('', s['td']),
+        Paragraph('', s['td']), Paragraph('', s['td']),
         Paragraph(_usd(total_canal), s['td_dark']),
     ])
 
-    n = len(rows)
+    n   = len(rows)
     tbl = Table(rows, colWidths=col_w, repeatRows=1)
     tbl.setStyle(_ts(
-        # Header
-        ('BACKGROUND',   (0,0), (-1,0), C_BLUE),
-        ('TOPPADDING',   (0,0), (-1,0), 5),
-        ('BOTTOMPADDING',(0,0), (-1,0), 5),
-        # Data rows alternadas
-        ('ROWBACKGROUNDS',(0,1), (-1,n-2), [C_WHITE, C_LGRAY]),
-        ('TOPPADDING',   (0,1), (-1,n-2), 4),
-        ('BOTTOMPADDING',(0,1), (-1,n-2), 4),
-        # Total row
-        ('BACKGROUND',   (0,-1), (-1,-1), C_DARK),
-        ('TOPPADDING',   (0,-1), (-1,-1), 6),
-        ('BOTTOMPADDING',(0,-1), (-1,-1), 6),
-        # General
-        ('LEFTPADDING',  (0,0), (-1,-1), 5),
-        ('RIGHTPADDING', (0,0), (-1,-1), 5),
-        ('VALIGN',       (0,0), (-1,-1), 'MIDDLE'),
-        ('GRID',         (0,0), (-1,-1), 0.3, C_MGRAY),
-        ('LINEABOVE',    (0,-1), (-1,-1), 1.5, C_BLUE),
+        ('BACKGROUND',    (0,0),  (-1,0),  C_BLACK),
+        ('TOPPADDING',    (0,0),  (-1,0),  5),
+        ('BOTTOMPADDING', (0,0),  (-1,0),  5),
+        ('ROWBACKGROUNDS',(0,1),  (-1,n-2),[C_WHITE, C_LGRAY]),
+        ('TOPPADDING',    (0,1),  (-1,n-2),4),
+        ('BOTTOMPADDING', (0,1),  (-1,n-2),4),
+        ('BACKGROUND',    (0,-1), (-1,-1), C_BLACK),
+        ('TOPPADDING',    (0,-1), (-1,-1), 5),
+        ('BOTTOMPADDING', (0,-1), (-1,-1), 5),
+        ('LEFTPADDING',   (0,0),  (-1,-1), 5),
+        ('RIGHTPADDING',  (0,0),  (-1,-1), 5),
+        ('VALIGN',        (0,0),  (-1,-1), 'MIDDLE'),
+        ('GRID',          (0,0),  (-1,-1), 0.3, C_MGRAY),
+        ('BOX',           (0,0),  (-1,-1), 0.8, C_BORDER),
     ))
+    return tbl, total_mep, total_canal
 
-    return [sec, Spacer(1, 4), tbl], total_mep, total_canal
-
-
-# ── Sección 3: Nota de descuento ──────────────────────────────────────────────
-def _build_nota_descuento(renewals, total_canal, s):
-    total_nd = sum(float(l.get('cvr_renew_bp_amt', 0)) + float(l.get('cvr_ontime_bp_amt', 0))
-                   for l in renewals)
-
-    nd_data = [
-        [Paragraph('Nota de descuento:', s['nd_lbl']),
-         Paragraph(_usd(total_nd), s['nd_val'])],
-    ]
-    nd_tbl = Table(nd_data, colWidths=[5.9*inch, 0.9*inch])
-    nd_tbl.setStyle(_ts(
-        ('BACKGROUND',   (0,0), (-1,-1), C_YELLOW),
+# ── Nota de descuento ─────────────────────────────────────────────────────────
+def _nota_descuento(renewals):
+    total_nd = sum(
+        float(l.get('cvr_renew_bp_amt', 0)) + float(l.get('cvr_ontime_bp_amt', 0))
+        for l in renewals
+    )
+    data = [[
+        Paragraph('Nota de descuento', _ps('nd_l', fontName='Helvetica-Bold',
+                                            fontSize=8, textColor=C_TEXT)),
+        Paragraph(_usd(total_nd), _ps('nd_r', fontName='Helvetica-Bold',
+                                       fontSize=8, textColor=C_TEXT, alignment=TA_RIGHT)),
+    ]]
+    tbl = Table(data, colWidths=[6.2*inch, 1.1*inch])
+    tbl.setStyle(_ts(
+        ('BOX',          (0,0), (-1,-1), 0.5, C_BORDER),
         ('TOPPADDING',   (0,0), (-1,-1), 5),
         ('BOTTOMPADDING',(0,0), (-1,-1), 5),
-        ('LEFTPADDING',  (0,0), (-1,-1), 8),
+        ('LEFTPADDING',  (0,0), (-1,-1), 6),
         ('RIGHTPADDING', (0,0), (-1,-1), 6),
         ('VALIGN',       (0,0), (-1,-1), 'MIDDLE'),
-        ('BOX',          (0,0), (-1,-1), 0.5, C_MGRAY),
     ))
+    return tbl, total_nd
 
-    nota_txt = Paragraph(
-        'Los precios aquí expresados son los precios a los que <b>INGRAM MICRO SAS</b> facturará al Canal. '
-        'El precio al Cliente debe ser definido por el Canal o por el fabricante en su propuesta según las condiciones del negocio.',
-        s['note']
-    )
-    return [Spacer(1, 3), nd_tbl, Spacer(1, 6), nota_txt]
-
-
-# ── Sección 4: Detalle de incentivos ─────────────────────────────────────────
-def _build_incentivos(renewals, cvr_renew_bp, cvr_ontime_bp, s):
-    total_nd = sum(float(l.get('cvr_renew_bp_amt', 0)) + float(l.get('cvr_ontime_bp_amt', 0))
-                   for l in renewals)
-
-    # Margen transaccional aproximado
-    total_mep   = sum(float(l.get('extended_price', 0)) for l in renewals)
-    total_canal = sum(float(l.get('costo_canal', 0)) for l in renewals)
-    pct_mg = (total_nd / total_canal * 100 + (total_mep - total_canal) / total_mep * 100) if total_mep else 0
-
-    mg_txt = Paragraph(
-        f'Margen transaccional aproximado incluyendo nota de descuento: <b>{pct_mg:.1f}%</b>  ·  Detalle de incentivos:',
-        ParagraphStyle('mg_t', fontName='Helvetica', fontSize=8.5,
-                       textColor=C_TEXT, leading=12, spaceBefore=4)
-    )
-
-    # Encabezado de sección
-    sec = Table(
-        [[Paragraph('DETALLE DE INCENTIVOS IBM', s['sec_hdr'])]],
-        colWidths=[6.8*inch]
-    )
-    sec.setStyle(_ts(
-        ('BACKGROUND',   (0,0), (-1,-1), C_BLUE),
-        ('TOPPADDING',   (0,0), (-1,-1), 5),
-        ('BOTTOMPADDING',(0,0), (-1,-1), 5),
-        ('LEFTPADDING',  (0,0), (-1,-1), 10),
-    ))
-
-    hdrs = ['Parte Número', 'Descripción', 'Cantidad',
-            f'Total Incentivo\n(CVR {cvr_renew_bp:.0f}%+{cvr_ontime_bp:.0f}%)',
-            f'On Time\n({cvr_ontime_bp:.0f}%)',
-            f'Renew\n({cvr_renew_bp:.0f}%)']
-    col_w = [0.9*inch, 2.95*inch, 0.55*inch, 1.1*inch, 0.85*inch, 0.85*inch]
-
-    rows = [[Paragraph(h, s['th']) for h in hdrs]]
-
-    total_inc   = 0.0
-    total_ontime = 0.0
-    total_renew  = 0.0
+# ── Tabla de incentivos ───────────────────────────────────────────────────────
+def _tabla_incentivos(renewals, cvr_renew_bp, cvr_ontime_bp, s):
+    hdrs  = ['Parte Número', 'Descripción', 'Cantidad',
+             'Total\nIncentivo', 'On time', 'Renew']
+    col_w = [0.85*inch, 3.0*inch, 0.55*inch, 1.0*inch, 0.85*inch, 0.85*inch]
+    rows  = [[Paragraph(h, s['th']) for h in hdrs]]
+    total_inc = total_ontime = total_renew = 0.0
 
     for item in renewals:
-        inc    = float(item.get('cvr_renew_bp_amt', 0)) + float(item.get('cvr_ontime_bp_amt', 0))
         ontime = float(item.get('cvr_ontime_bp_amt', 0))
-        renew  = float(item.get('cvr_renew_bp_amt', 0))
-        desc   = str(item.get('part_description', ''))
-
+        renew  = float(item.get('cvr_renew_bp_amt',  0))
+        inc    = ontime + renew
         rows.append([
             Paragraph(str(item.get('part_number', '')), s['td']),
-            Paragraph(desc, s['td']),
-            Paragraph(str(item.get('quantity', 1)),
-                      ParagraphStyle('ctr2', fontName='Helvetica', fontSize=7.5,
-                                     textColor=C_TEXT, alignment=TA_CENTER)),
+            Paragraph(str(item.get('part_description', '')), s['td']),
+            Paragraph(str(item.get('quantity', 1)), s['td_c']),
             Paragraph(_usd(inc),    s['td_r']),
-            Paragraph(_usd(ontime) if ontime else '—', s['td_r']),
+            Paragraph(_usd(ontime) if ontime else '$ —', s['td_r']),
             Paragraph(_usd(renew),  s['td_r']),
         ])
         total_inc    += inc
         total_ontime += ontime
         total_renew  += renew
 
-    # Fila Total
     rows.append([
         Paragraph('', s['td']),
         Paragraph('Total', s['td_dark_l']),
@@ -406,72 +268,25 @@ def _build_incentivos(renewals, cvr_renew_bp, cvr_ontime_bp, s):
         Paragraph(_usd(total_renew),  s['td_dark']),
     ])
 
-    n = len(rows)
+    n   = len(rows)
     tbl = Table(rows, colWidths=col_w, repeatRows=1)
     tbl.setStyle(_ts(
-        ('BACKGROUND',   (0,0), (-1,0), C_BLUE),
-        ('TOPPADDING',   (0,0), (-1,0), 5),
-        ('BOTTOMPADDING',(0,0), (-1,0), 5),
-        ('ROWBACKGROUNDS',(0,1), (-1,n-2), [C_WHITE, C_LGRAY]),
-        ('TOPPADDING',   (0,1), (-1,n-2), 4),
-        ('BOTTOMPADDING',(0,1), (-1,n-2), 4),
-        ('BACKGROUND',   (0,-1), (-1,-1), C_DARK),
-        ('TOPPADDING',   (0,-1), (-1,-1), 5),
-        ('BOTTOMPADDING',(0,-1), (-1,-1), 5),
-        ('LEFTPADDING',  (0,0), (-1,-1), 5),
-        ('RIGHTPADDING', (0,0), (-1,-1), 5),
-        ('VALIGN',       (0,0), (-1,-1), 'MIDDLE'),
-        ('GRID',         (0,0), (-1,-1), 0.3, C_MGRAY),
-        ('LINEABOVE',    (0,-1), (-1,-1), 1.5, C_BLUE),
+        ('BACKGROUND',    (0,0),  (-1,0),  C_BLACK),
+        ('TOPPADDING',    (0,0),  (-1,0),  5),
+        ('BOTTOMPADDING', (0,0),  (-1,0),  5),
+        ('ROWBACKGROUNDS',(0,1),  (-1,n-2),[C_WHITE, C_LGRAY]),
+        ('TOPPADDING',    (0,1),  (-1,n-2),4),
+        ('BOTTOMPADDING', (0,1),  (-1,n-2),4),
+        ('BACKGROUND',    (0,-1), (-1,-1), C_BLACK),
+        ('TOPPADDING',    (0,-1), (-1,-1), 5),
+        ('BOTTOMPADDING', (0,-1), (-1,-1), 5),
+        ('LEFTPADDING',   (0,0),  (-1,-1), 5),
+        ('RIGHTPADDING',  (0,0),  (-1,-1), 5),
+        ('VALIGN',        (0,0),  (-1,-1), 'MIDDLE'),
+        ('GRID',          (0,0),  (-1,-1), 0.3, C_MGRAY),
+        ('BOX',           (0,0),  (-1,-1), 0.8, C_BORDER),
     ))
-
-    return [mg_txt, Spacer(1, 5), sec, Spacer(1, 4), tbl]
-
-
-# ── Sección 5: Condiciones y firma ────────────────────────────────────────────
-def _build_condiciones(s):
-    condiciones = [
-        'Incentivos sujetos a cambio de programa Partner Plus de IBM.',
-        'Los precios enviados en esta propuesta están aprobados por IBM bajo el SBID.',
-        'El manejo de los SBID está regulado por lo establecido en el BPA firmado con IBM.',
-        'Para procesar este SBID, Ingram Micro podrá solicitar la Orden de Compra (OC) enviada por el cliente final.',
-        'Las notas de descuento se generan de manera independiente; se emiten excluidas de IVA a TRM fecha de emisión.',
-        'Los precios están expresados en USD y sujetos a cambios según las políticas de IBM.',
-        'Se respetará el Precio Máximo para el Usuario Final (MEP), según lo indicado por IBM.',
-        'Por favor recuerde que se factura a la TRM fecha de emisión de la factura.',
-        'Un SBID puede ser revocado o ajustado en caso de cambios en las políticas de IBM.',
-        'Los valores aquí mencionados no incluyen IVA; dicho impuesto será cargado en la factura.',
-        f'Propuesta válida por 30 días a partir de la fecha de emisión.',
-    ]
-
-    sec = Table(
-        [[Paragraph('Condiciones Generales de Cotización – INGRAM MICRO S.A.S.', s['sec_hdr'])]],
-        colWidths=[6.8*inch]
-    )
-    sec.setStyle(_ts(
-        ('BACKGROUND',   (0,0), (-1,-1), C_DARK),
-        ('TOPPADDING',   (0,0), (-1,-1), 5),
-        ('BOTTOMPADDING',(0,0), (-1,-1), 5),
-        ('LEFTPADDING',  (0,0), (-1,-1), 10),
-    ))
-
-    items = [sec, Spacer(1, 4)]
-    for c in condiciones:
-        items.append(Paragraph(f'• {c}', s['cond']))
-        items.append(Spacer(1, 1))
-
-    items += [
-        Spacer(1, 8),
-        HRFlowable(width='100%', thickness=0.5, color=C_MGRAY),
-        Spacer(1, 5),
-        Paragraph(
-            'Angela Herrera · <b>Business Development Manager IBM</b> · '
-            'angela.herrera@ingrammicro.com · +57 316 696 91 38 · Ingram Micro Colombia',
-            s['firma']
-        ),
-    ]
-    return items
-
+    return tbl
 
 # ── Función principal ─────────────────────────────────────────────────────────
 def generate_quote_pdf(
@@ -484,43 +299,190 @@ def generate_quote_pdf(
     ingram_margin_percent: float = 0.0,
     cvr_renew_bp: float = 0.0,
     cvr_ontime_bp: float = 0.0,
+    solicitante: str = '',
+    celular: str = '',
+    mail: str = '',
 ):
-    # Si customer_name viene del site completo, limpiarlo
     customer_name = _extract_customer_name(customer_name) or customer_name
+    first     = renewals[0] if renewals else {}
+    reseller  = _extract_reseller_name(first.get('reseller', ''))
+    sbid      = quote_number or first.get('quote_number', '')
+    today     = datetime.now().strftime('%-d/%m/%Y')
+    valid_dt  = (datetime.now() + timedelta(days=30)).strftime('%d %B de %Y')
 
     doc = SimpleDocTemplate(
-        output_path,
-        pagesize=letter,
-        rightMargin=0.6*inch,
-        leftMargin=0.6*inch,
-        topMargin=0.5*inch,
-        bottomMargin=0.6*inch,
+        output_path, pagesize=letter,
+        rightMargin=MARGIN_R, leftMargin=MARGIN_L,
+        topMargin=MARGIN_T,   bottomMargin=MARGIN_B,
     )
-
-    s = _styles()
+    s     = _styles()
     story = []
 
-    # 1. Encabezado
-    story += _build_header(renewals, customer_name, quote_number, s)
+    # ── PÁGINA 1 ──────────────────────────────────────────────────────────────
+    story.append(_logo_header())
     story.append(Spacer(1, 10))
-    story.append(HRFlowable(width='100%', thickness=1.5, color=C_BLUE))
+    story.append(HRFlowable(width='100%', thickness=0.5, color=C_MGRAY))
     story.append(Spacer(1, 8))
 
-    # 2. Tabla de líneas
-    tabla_elements, total_mep, total_canal = _build_tabla_lineas(
-        renewals, bp_margin_percent, cvr_renew_bp, cvr_ontime_bp, s)
-    story += tabla_elements
+    story.append(_info_table(reseller, customer_name, today, solicitante, celular, mail))
+    story.append(Spacer(1, 10))
+
+    story.append(Paragraph('DESCRIPCIÓN DE LA SOLUCIÓN', s['sec_red']))
+    story.append(Spacer(1, 4))
+    story.append(Paragraph(
+        f'A continuación, se comparten precios aprobados bajo SBID {sbid} '
+        f'para el cliente {customer_name}',
+        _ps('desc', fontSize=8.5, textColor=C_TEXT, leading=12)
+    ))
+    story.append(Spacer(1, 10))
+
+    story.append(Paragraph('RESUMEN PROPUESTA ECONÓMICA', s['sec_red']))
     story.append(Spacer(1, 4))
 
-    # 3. Nota de descuento
-    story += _build_nota_descuento(renewals, total_canal, s)
+    tbl_lineas, total_mep, total_canal = _tabla_lineas(renewals, bp_margin_percent, s)
+    story.append(tbl_lineas)
+    story.append(Spacer(1, 2))
+
+    nd_tbl, total_nd = _nota_descuento(renewals)
+    story.append(nd_tbl)
+    story.append(Spacer(1, 8))
+
+    story.append(Paragraph(
+        'Los precios aquí expresados son los precios a los que <b>INGRAM MICRO SAS</b> facturará al Canal. '
+        'El precio al Cliente debe ser definido por el Canal o por el fabricante en su propuesta '
+        'según las condiciones del negocio.',
+        _ps('nota', fontSize=7.5, textColor=C_TEXT, leading=11)
+    ))
     story.append(Spacer(1, 10))
 
-    # 4. Detalle de incentivos
-    story += _build_incentivos(renewals, cvr_renew_bp, cvr_ontime_bp, s)
+    cond_box = Table(
+        [[Paragraph('Condiciones Generales de Cotización – INGRAM MICRO S.A.S.',
+                    _ps('cb', fontName='Helvetica-Bold', fontSize=8.5,
+                        textColor=C_TEXT, alignment=TA_CENTER))]],
+        colWidths=[CONTENT_W]
+    )
+    cond_box.setStyle(_ts(
+        ('BOX',          (0,0), (-1,-1), 0.8, C_BORDER),
+        ('TOPPADDING',   (0,0), (-1,-1), 7),
+        ('BOTTOMPADDING',(0,0), (-1,-1), 7),
+        ('LEFTPADDING',  (0,0), (-1,-1), 8),
+    ))
+    story.append(cond_box)
+    story.append(Spacer(1, 8))
+
+    pct_mg = (total_nd / total_canal * 100) if total_canal else 0
+    story.append(Paragraph(
+        f'<b>Margen transaccional aproximado incluyendo nota de descuento: {pct_mg:.1f}%</b>',
+        _ps('mg', fontSize=8.5, textColor=C_TEXT, leading=12)
+    ))
+    story.append(Paragraph(
+        '<font color="#CC0000"><b>Detalle de incentivos:</b></font>',
+        _ps('inc_hdr', fontSize=8.5, leading=12)
+    ))
+    story.append(Spacer(1, 6))
+    story.append(_tabla_incentivos(renewals, cvr_renew_bp, cvr_ontime_bp, s))
+    story.append(Spacer(1, 14))
+
+    condiciones = [
+        'Incentivos sujetos a cambio de programa Partner Plus de IBM.',
+        f'Los precios enviados en esta propuesta están aprobados por IBM bajo el SBID {sbid}.',
+        'El manejo de los SBID está regulado por lo establecido en el BPA firmado con IBM.',
+        'Para procesar este SBID, Ingram Micro podrá solicitar la Orden de Compra (OC) enviada por el cliente final.',
+        'Las notas de descuento se generan de manera independiente; se emiten excluidas de IVA a TRM fecha de emisión.',
+        'Los precios están expresados en USD y sujetos a cambios según las políticas de IBM.',
+        'Se respetará el Precio Máximo para el Usuario Final (MEP), según lo indicado por IBM.',
+        'Por favor recuerde que se factura a la TRM fecha de emisión de la factura.',
+        'Un SBID puede ser revocado o ajustado en caso de cambios en las políticas de IBM.',
+        'Los valores aquí mencionados no incluyen IVA; dicho impuesto será cargado en la factura.',
+        f'Propuesta válida hasta {valid_dt}.',
+    ]
+    for cond in condiciones:
+        story.append(Paragraph(cond, _ps('ci', fontSize=7.5, textColor=C_TEXT, leading=11)))
+        story.append(Spacer(1, 1))
+
+    # ── PÁGINA 2 ──────────────────────────────────────────────────────────────
+    story.append(PageBreak())
+    story.append(_logo_header())
+    story.append(Spacer(1, 10))
+    story.append(HRFlowable(width='100%', thickness=0.5, color=C_MGRAY))
     story.append(Spacer(1, 10))
 
-    # 5. Condiciones y firma
-    story += _build_condiciones(s)
+    legal = [
+        ('bold',   'El presente servicio corresponde a la renovación de Software Subscription and Support (S&S) de IBM, '
+                   'el cual proporciona al cliente los siguientes beneficios durante el período contratado:'),
+        ('bullet', 'Acceso a soporte técnico de IBM durante el horario laboral para resolver dudas de instalación, uso o problemas técnicos.'),
+        ('bullet', 'Atención 24/7 para incidentes críticos (Severidad 1).'),
+        ('bullet', 'Actualizaciones, parches y correcciones de seguridad para el software licenciado.'),
+        ('bullet', 'Costos de mantenimiento predecibles, facilitando la planeación financiera.'),
+        ('bullet', 'Posibilidad de extender el soporte hasta por 3 años desde la compra inicial.'),
+        ('normal', ''),
+        ('bold',   'Exclusiones:'),
+        ('normal', 'Este servicio no cubre actividades de diseño o desarrollo de aplicaciones, soporte en ambientes '
+                   'no autorizados por IBM, ni incidentes causados por software o hardware no perteneciente a IBM.'),
+        ('normal', ''),
+        ('bold',   'Condiciones comerciales:'),
+        ('normal', 'Los precios enviados en esta propuesta son precios referenciales, están dados en dólares y '
+                   'sujetos a cambio dependiendo de las políticas del Fabricante.'),
+        ('normal', 'Por favor recuerde facturamos a la TRM de la facturación de Ingram Micro.'),
+        ('normal', 'No incluyen IVA.'),
+        ('normal', ''),
+        ('normal', 'Como Asociado de Negocios de IBM, usted ha solicitado, a través de Ingram Micro, un precio '
+                   'especial para una oportunidad de negocio específica con el Usuario Final indicado en esta '
+                   'cotización, a través del proceso de Special Bid.'),
+        ('normal', ''),
+        ('normal', 'Al aceptar esta cotización, usted asume la responsabilidad de trasladar íntegramente el '
+                   'beneficio financiero del Special Bid al Usuario Final y garantizar que el precio facturado no '
+                   'exceda el Precio Máximo para el Usuario Final ("Maximum End User Price") estipulado en esta cotización.'),
+        ('normal', ''),
+        ('normal', 'Esta oferta de precio especial es válida únicamente durante el plazo indicado y, en caso de '
+                   'aceptación, quedará sujeta a los términos y condiciones de esta cotización y al Contrato de '
+                   'Asociado de Negocios IBM que usted tenga suscrito con IBM.'),
+        ('normal', ''),
+        ('normal', 'Además, usted reconoce y acepta que el Maximum End User Price no podrá verse afectado en '
+                   'las facturas al Usuario Final por cargos adicionales no relacionados directamente con la '
+                   'transacción, tales como costos generales de ventas, infraestructura operativa u otros gastos '
+                   'indirectos. Cualquier cargo de este tipo que incremente el precio final será considerado un '
+                   'sobreprecio, constituyendo una violación al acuerdo de Special Bid y al Contrato de Asociado '
+                   'de Negocios IBM.'),
+        ('normal', ''),
+        ('normal', 'Asimismo, usted acepta que Ingram Micro tiene el derecho de verificar el cumplimiento de '
+                   'estas condiciones. En caso de que se detecte un incumplimiento, o si no se proporciona '
+                   'información confiable y precisa para validar la correcta aplicación del precio aprobado, '
+                   'Ingram Micro podrá reclamarle la diferencia entre el Precio aprobado para el Usuario Final '
+                   'y el precio efectivamente facturado.'),
+        ('normal', ''),
+        ('normal', 'El no proporcionar la información solicitada por Ingram Micro para acreditar el cumplimiento '
+                   'del Special Bid podrá resultar en la invalidación de la oferta especial y en la recuperación, '
+                   'por parte de Ingram Micro, de cualquier descuento aplicado.'),
+        ('normal', ''),
+        ('bold',   'Su organización es responsable de:'),
+        ('numbered','1. Asegurar que el nombre del cliente final corresponde a quien se presenta esta oferta.'),
+        ('numbered','2. Asegurar que se cobrará como valor máximo el valor indicado en el MEP (Maximum End User Price).'),
+        ('numbered','3. Que la Ruta de Mercado se encuentra aprobada. Contrato BPA activo, Entidades financieras, '
+                    'si hay un tercero debe quedar documentado por medio de un Transaccional Agreement o el proceso que corresponda.'),
+        ('numbered','4. Que la política de Tasa de Cambio (TRM) que utilice con su cliente esté alineada con la '
+                    'entregada en esta propuesta o que utilice una fuente autorizada para estimar dicha Tasa de Cambio.'),
+        ('normal', ''),
+        ('normal', 'Cordialmente,'),
+    ]
+
+    for tipo, txt in legal:
+        if not txt:
+            story.append(Spacer(1, 4))
+            continue
+        if tipo == 'bold':
+            story.append(Paragraph(txt, _ps('l_b', fontName='Helvetica-Bold',
+                                            fontSize=7.5, textColor=C_TEXT, leading=11)))
+        elif tipo == 'bullet':
+            story.append(Paragraph(f'• {txt}', _ps('l_bul', fontSize=7.5,
+                                                     textColor=C_TEXT, leading=11, leftIndent=12)))
+        elif tipo == 'numbered':
+            story.append(Paragraph(txt, _ps('l_num', fontSize=7.5,
+                                             textColor=C_BLUE, leading=11, leftIndent=12)))
+        else:
+            story.append(Paragraph(txt, _ps('l_n', fontSize=7.5,
+                                            textColor=C_TEXT, leading=11)))
+        story.append(Spacer(1, 2))
 
     doc.build(story)
+    return output_path
