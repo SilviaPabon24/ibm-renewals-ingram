@@ -1,8 +1,9 @@
 """
 Portal de Renovaciones IBM S&S — Ingram Micro
+Layout master-detail: sidebar con lista de quotes + panel de detalle
 """
-
-PORTAL_HTML = '''<!DOCTYPE html>
+ 
+PORTAL_HTML = r'''<!DOCTYPE html>
 <html lang="es">
 <head>
 <meta charset="UTF-8">
@@ -10,877 +11,738 @@ PORTAL_HTML = '''<!DOCTYPE html>
 <title>Renovaciones IBM S&S — Ingram Micro</title>
 <style>
 *{box-sizing:border-box;margin:0;padding:0}
-body{font-family:'Segoe UI',system-ui,sans-serif;background:#F0F4F8;color:#1A2B3C;min-height:100vh}
-.topbar{background:#fff;border-bottom:1px solid #E2E8F0;padding:0 1.5rem;height:52px;display:flex;align-items:center;justify-content:space-between}
-.logo{font-size:18px;font-weight:700;color:#0066CC;letter-spacing:-0.5px}.logo span{color:#003366}
-.ibm-badge{background:#054ADA;color:#fff;font-size:10px;font-weight:700;padding:3px 9px;border-radius:4px}
-.main{max-width:900px;margin:0 auto;padding:1.5rem 1rem}
-.step-bar{display:flex;gap:8px;margin-bottom:1.5rem}
-.step{flex:1;background:#fff;border:0.5px solid #E2E8F0;border-radius:10px;padding:12px 14px;display:flex;align-items:center;gap:10px}
-.step.active{border-color:#0066CC;background:#EBF3FF}
-.step.done{border-color:#16A34A;background:#F0FDF4}
-.snum{width:24px;height:24px;border-radius:50%;background:#F1F5F9;color:#64748B;font-size:11px;font-weight:700;display:flex;align-items:center;justify-content:center;flex-shrink:0}
-.step.active .snum{background:#0066CC;color:#fff}
-.step.done .snum{background:#16A34A;color:#fff}
-.slbl{font-size:11px;font-weight:600;color:#1A2B3C}
-.sdesc{font-size:10px;color:#64748B}
-.card{background:#fff;border:0.5px solid #E2E8F0;border-radius:12px;padding:1.25rem;margin-bottom:1rem}
-.card-title{font-size:14px;font-weight:600;color:#0F2B5B;margin-bottom:1rem}
-.dropzone{border:1.5px dashed #CBD5E1;border-radius:10px;padding:2rem 1rem;text-align:center;cursor:pointer;transition:border-color 0.15s,background 0.15s;position:relative}
+html,body{height:100%;overflow:hidden}
+body{font-family:'Segoe UI',system-ui,sans-serif;background:#F0F4F8;color:#1A2B3C;display:flex;flex-direction:column}
+ 
+/* Topbar */
+.topbar{background:#fff;border-bottom:0.5px solid #E2E8F0;padding:0 1rem;height:44px;display:flex;align-items:center;justify-content:space-between;flex-shrink:0}
+.logo{font-size:14px;font-weight:600;color:#0066CC}
+.ibm-badge{background:#054ADA;color:#fff;font-size:10px;font-weight:600;padding:2px 9px;border-radius:5px}
+ 
+/* Steps */
+.steps{background:#fff;border-bottom:0.5px solid #E2E8F0;padding:0 1rem;display:flex;align-items:center;height:36px;flex-shrink:0;gap:4px}
+.step{display:flex;align-items:center;gap:5px;font-size:11px;color:#94A3B8}
+.step.active{color:#0066CC}
+.step.done{color:#16A34A}
+.sn{width:17px;height:17px;border-radius:50%;background:#E2E8F0;display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:700;color:#64748B}
+.step.active .sn{background:#0066CC;color:#fff}
+.step.done .sn{background:#16A34A;color:#fff}
+.sarr{color:#CBD5E1;font-size:11px;margin:0 4px}
+ 
+/* Upload screen */
+.upload-screen{flex:1;display:flex;align-items:center;justify-content:center;padding:2rem}
+.upload-card{background:#fff;border:0.5px solid #E2E8F0;border-radius:14px;padding:2rem;max-width:480px;width:100%;text-align:center}
+.dropzone{border:1.5px dashed #CBD5E1;border-radius:10px;padding:2rem 1rem;cursor:pointer;position:relative;transition:border-color 0.15s,background 0.15s;margin:1rem 0}
 .dropzone:hover,.dropzone.drag{border-color:#0066CC;background:#EBF3FF}
 .dropzone input{position:absolute;inset:0;opacity:0;cursor:pointer;width:100%;height:100%}
-.alert{border-radius:8px;padding:10px 14px;font-size:12px;margin-top:10px}
-.alert-success{background:#F0FDF4;color:#166534;border:1px solid #BBF7D0}
-.alert-warning{background:#FFFBEB;color:#92400E;border:1px solid #FCD34D}
-.alert-error{background:#FEF2F2;color:#991B1B;border:1px solid #FECACA}
-.global-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:1rem}
-.field{display:flex;flex-direction:column;gap:4px}
-.field label{font-size:10px;font-weight:600;color:#64748B;text-transform:uppercase;letter-spacing:0.4px}
-.sfx-wrap{position:relative}
-.sfx-wrap input{padding-right:26px;width:100%}
-.sfx{position:absolute;right:8px;top:50%;transform:translateY(-50%);font-size:12px;color:#64748B;pointer-events:none}
-.hint{font-size:10px;color:#94A3B8;margin-top:2px}
-
-/* ── Quote list ── */
-.quote-list{display:flex;flex-direction:column;gap:8px}
-.q-row{background:#fff;border:0.5px solid #E2E8F0;border-radius:8px;padding:0;display:grid;grid-template-columns:auto 1fr auto auto;align-items:center;gap:0;cursor:pointer;transition:all 0.15s;overflow:hidden}
-.q-row:hover{border-color:#0066CC;background:#F8FAFF}
-.q-row.selected{border-color:#0066CC;background:#EBF3FF}
-.q-row.checked{border-color:#16A34A;background:#F0FDF4}
-.q-row.checked-done{border-color:#16A34A;background:#DCFCE7}
-
-/* Checkbox columna izquierda */
-.q-check-col{padding:12px 10px 12px 14px;display:flex;align-items:center}
-.q-checkbox{width:18px;height:18px;border:1.5px solid #CBD5E1;border-radius:4px;cursor:pointer;display:flex;align-items:center;justify-content:center;flex-shrink:0;transition:all 0.15s;background:#fff}
-.q-checkbox.checked{background:#16A34A;border-color:#16A34A;color:#fff;font-size:12px}
-.q-checkbox.checked::after{content:'✓';color:#fff;font-size:11px;font-weight:700}
-
-/* Info del quote */
-.q-info{padding:12px 8px;min-width:0}
-.q-num{font-size:13px;font-weight:600;color:#0F2B5B}
-.q-customer{font-size:11px;color:#64748B;margin-top:1px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.q-badges{padding:12px 8px;display:flex;gap:6px;align-items:center;flex-shrink:0}
-.b-warn{background:#FEF3C7;color:#92400E;font-size:10px;padding:2px 8px;border-radius:4px;font-weight:600}
-.b-done{background:#DCFCE7;color:#166534;font-size:10px;padding:2px 8px;border-radius:4px;font-weight:600}
-.b-dl{background:#EBF3FF;color:#0066CC;font-size:10px;padding:2px 8px;border-radius:4px;font-weight:600}
-.b-lines{background:#F1F5F9;color:#64748B;font-size:10px;padding:2px 8px;border-radius:4px}
-.q-total-col{padding:12px 14px 12px 8px;text-align:right;flex-shrink:0}
-.q-total{font-size:13px;font-weight:600;color:#0F2B5B}
-.q-total-sub{font-size:10px;color:#64748B}
-
-/* ── Barra de descarga masiva ── */
-.bulk-bar{background:#fff;border:1.5px solid #16A34A;border-radius:10px;padding:14px 16px;display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:1rem}
-.bulk-bar.hidden{display:none!important}
-.bulk-info{display:flex;align-items:center;gap:10px}
-.bulk-count{background:#DCFCE7;color:#166534;font-size:13px;font-weight:700;padding:4px 12px;border-radius:6px}
-.bulk-label{font-size:13px;font-weight:600;color:#1A2B3C}
-.bulk-sub{font-size:11px;color:#64748B;margin-top:1px}
-
-/* Editor */
-.editor-box{background:#F8FAFC;border:0.5px solid #E2E8F0;border-radius:8px;padding:1rem;margin-top:10px}
-.editor-box-title{font-size:12px;font-weight:600;color:#0F2B5B;margin-bottom:12px}
-.fields-row{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:12px}
-.toggle-row{display:flex;gap:16px;margin-bottom:12px;flex-wrap:wrap}
-.toggle{display:flex;align-items:center;gap:6px;cursor:pointer;user-select:none}
-.toggle input{width:14px;height:14px}
-.toggle span{font-size:12px;color:#1A2B3C}
-.summary-bar{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin:12px 0}
-.scard{background:#F1F5F9;border-radius:8px;padding:10px 14px}
-.scard-lbl{font-size:10px;color:#64748B;text-transform:uppercase;letter-spacing:0.4px;font-weight:600;margin-bottom:3px}
-.scard-val{font-size:18px;font-weight:700;color:#0F2B5B}
-.scard-val.blue{color:#0066CC}
-.scard-val.red{color:#DC2626}
-
-/* Check de revisión */
-.review-check{background:#F0FDF4;border:1px solid #BBF7D0;border-radius:8px;padding:12px 16px;display:flex;align-items:center;gap:12px;margin-top:10px}
-.review-check label{display:flex;align-items:center;gap:8px;cursor:pointer;font-size:13px;font-weight:600;color:#166534}
-.review-check input[type=checkbox]{width:18px;height:18px;accent-color:#16A34A;cursor:pointer}
-.review-check .review-hint{font-size:11px;color:#64748B;margin-left:auto}
-
+ 
+/* Main layout */
+.main-layout{flex:1;display:grid;grid-template-columns:280px 1fr;overflow:hidden}
+.main-layout.hidden{display:none!important}
+ 
+/* Sidebar */
+.sidebar{background:#fff;border-right:0.5px solid #E2E8F0;display:flex;flex-direction:column;overflow:hidden}
+.sb-head{padding:10px 12px;border-bottom:0.5px solid #E2E8F0;flex-shrink:0}
+.sb-title{font-size:13px;font-weight:600;color:#0F2B5B}
+.sb-meta{font-size:11px;color:#64748B;margin-top:2px}
+ 
+/* Params bar */
+.params-bar{padding:8px 12px;border-bottom:0.5px solid #E2E8F0;background:#F8FAFC;flex-shrink:0}
+.params-top{display:flex;align-items:center;justify-content:space-between;cursor:pointer}
+.params-pills{display:flex;gap:4px;flex-wrap:wrap}
+.pill{background:#fff;border:0.5px solid #E2E8F0;border-radius:20px;padding:2px 7px;font-size:10px;color:#64748B}
+.pill strong{color:#1A2B3C}
+.edit-lnk{font-size:10px;color:#0066CC;font-weight:600;white-space:nowrap;flex-shrink:0}
+.params-panel{display:none;padding-top:10px}
+.params-panel.open{display:block}
+.params-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.pfield label{display:block;font-size:10px;font-weight:600;color:#64748B;text-transform:uppercase;letter-spacing:0.3px;margin-bottom:3px}
+.pfield .sw{position:relative}
+.pfield input{width:100%;height:30px;border:0.5px solid #D1D5DB;border-radius:6px;padding:0 22px 0 8px;font-size:12px;color:#1A2B3C;outline:none}
+.pfield input:focus{border-color:#0066CC}
+.pfield .sfx{position:absolute;right:7px;top:50%;transform:translateY(-50%);font-size:11px;color:#94A3B8;pointer-events:none}
+.params-actions{display:flex;gap:6px;margin-top:8px}
+ 
+/* Quote list */
+.q-list{overflow-y:auto;flex:1}
+.q-item{display:grid;grid-template-columns:38px 1fr auto;align-items:center;padding:9px 12px;border-bottom:0.5px solid #F1F5F9;cursor:pointer;transition:background 0.1s;border-left:3px solid transparent}
+.q-item:hover{background:#F8FAFC}
+.q-item.sel{background:#EBF3FF;border-left-color:#0066CC}
+.q-item.ready{border-left-color:#16A34A}
+.q-item.ready.sel{background:#F0FDF4}
+.q-item.has-warn{border-left-color:#F59E0B}
+.chk{width:18px;height:18px;border-radius:4px;border:1.5px solid #CBD5E1;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;color:#16A34A;transition:all 0.15s;flex-shrink:0}
+.chk.on{background:#16A34A;border-color:#16A34A;color:#fff}
+.qi-body{margin-left:8px;min-width:0}
+.qi-num{font-size:12px;font-weight:600;color:#0F2B5B;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.qi-cust{font-size:10px;color:#64748B;margin-top:1px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.qi-right{text-align:right;flex-shrink:0}
+.qi-amt{font-size:11px;font-weight:600;color:#0F2B5B}
+.qtag{font-size:9px;font-weight:600;padding:1px 6px;border-radius:20px;margin-top:2px;display:inline-block}
+.qtag-ok{background:#DCFCE7;color:#166534}
+.qtag-warn{background:#FEF3C7;color:#92400E}
+.qtag-gray{background:#F1F5F9;color:#64748B}
+.qtag-blue{background:#EBF3FF;color:#0066CC}
+ 
+/* Bulk footer */
+.bulk-footer{border-top:0.5px solid #E2E8F0;padding:10px 12px;background:#F0FDF4;flex-shrink:0}
+.bulk-footer.hidden{display:none!important}
+.bf-row{display:flex;align-items:center;justify-content:space-between;gap:8px}
+.bf-info{font-size:11px;font-weight:600;color:#166534}
+.bf-sub{font-size:10px;color:#16A34A;margin-top:1px}
+ 
+/* Detail panel */
+.detail{overflow-y:auto;padding:1.25rem;background:#F0F4F8}
+.detail-empty{height:100%;display:flex;flex-direction:column;align-items:center;justify-content:center;color:#94A3B8;gap:8px}
+.detail-empty .icon{font-size:36px}
+ 
+.dcard{background:#fff;border:0.5px solid #E2E8F0;border-radius:12px;padding:1rem 1.25rem;margin-bottom:10px}
+ 
+/* Detail header */
+.d-title{font-size:15px;font-weight:600;color:#0F2B5B}
+.d-sub{font-size:12px;color:#64748B;margin-top:3px}
+ 
+/* Params in detail */
+.dp-head{font-size:11px;font-weight:600;color:#64748B;text-transform:uppercase;letter-spacing:0.3px;display:flex;align-items:center;justify-content:space-between;margin-bottom:10px}
+.dp-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:10px}
+.dpf label{display:block;font-size:10px;color:#64748B;margin-bottom:3px}
+.dpf .sw{position:relative}
+.dpf input{width:100%;height:30px;border:0.5px solid #D1D5DB;border-radius:6px;padding:0 22px 0 8px;font-size:12px;color:#1A2B3C;outline:none}
+.dpf input:focus{border-color:#0066CC}
+.dpf .sfx{position:absolute;right:7px;top:50%;transform:translateY(-50%);font-size:11px;color:#94A3B8;pointer-events:none}
+.toggles{display:flex;gap:16px;font-size:12px;color:#1A2B3C}
+.toggle{display:flex;align-items:center;gap:5px;cursor:pointer}
+.toggle input{width:13px;height:13px}
+ 
+/* Summary cards */
+.scards{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:10px}
+.sc{background:#F8FAFC;border-radius:8px;padding:9px 12px}
+.sc-lbl{font-size:10px;color:#64748B;text-transform:uppercase;letter-spacing:0.3px;font-weight:600;margin-bottom:3px}
+.sc-val{font-size:17px;font-weight:700;color:#0F2B5B}
+.sc-val.g{color:#16A34A}
+.sc-val.b{color:#0066CC}
+ 
+/* Coverage */
+.cov-lines{display:flex;flex-direction:column;gap:4px;margin-bottom:10px}
+.cl{display:flex;align-items:center;gap:7px;padding:7px 11px;border-radius:7px;font-size:12px}
+.cl-ok{background:#F0FDF4;border:0.5px solid #BBF7D0;color:#166534}
+.cl-warn{background:#FFFBEB;border:0.5px solid #FCD34D;color:#92400E}
+ 
+/* Table */
+.tbl-wrap{overflow-x:auto;margin-bottom:10px}
 table{width:100%;border-collapse:collapse;font-size:12px}
-th{background:#0066CC;color:#fff;padding:8px 10px;text-align:left;font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:0.3px}
-th:first-child{border-radius:6px 0 0 0}th:last-child{border-radius:0 6px 0 0}
-td{padding:8px 10px;border-bottom:0.5px solid #F1F5F9;vertical-align:middle}
+th{background:#0F2B5B;color:#fff;padding:7px 10px;text-align:left;font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:0.3px}
+td{padding:7px 10px;border-bottom:0.5px solid #F1F5F9;vertical-align:middle}
 tr:nth-child(even) td{background:#F8FAFC}
 .tot-row td{background:#EBF3FF!important;font-weight:700;color:#0C447C}
-.btn{display:inline-flex;align-items:center;justify-content:center;gap:7px;height:38px;padding:0 18px;border-radius:8px;border:none;cursor:pointer;font-size:13px;font-weight:600;transition:background 0.15s,transform 0.1s}
-.btn:active{transform:scale(0.98)}
-.btn-primary{background:#0066CC;color:#fff}.btn-primary:hover{background:#0052A3}
-.btn-primary:disabled{background:#93C5FD;cursor:not-allowed}
-.btn-success{background:#16A34A;color:#fff}.btn-success:hover{background:#15803D}
-.btn-success:disabled{background:#86EFAC;cursor:not-allowed}
-.btn-outline{background:#fff;color:#0066CC;border:1.5px solid #0066CC}.btn-outline:hover{background:#EBF3FF}
-.btn-amber{background:#D97706;color:#fff}.btn-amber:hover{background:#B45309}
-.btn-sm{height:32px;padding:0 12px;font-size:12px}
-.btn-group{display:flex;gap:8px;flex-wrap:wrap;margin-top:12px;align-items:center}
-.spinner{width:14px;height:14px;border:2px solid rgba(255,255,255,0.3);border-top-color:#fff;border-radius:50%;animation:spin 0.7s linear infinite}
-@keyframes spin{to{transform:rotate(360deg)}}
+ 
+/* Buttons */
+.btn{display:inline-flex;align-items:center;gap:6px;height:34px;padding:0 14px;border-radius:8px;border:none;cursor:pointer;font-size:12px;font-weight:600;transition:all 0.15s}
+.btn:active{transform:scale(0.97)}
+.btn-p{background:#0066CC;color:#fff}.btn-p:hover{background:#0052A3}
+.btn-p:disabled{background:#93C5FD;cursor:not-allowed}
+.btn-s{background:#16A34A;color:#fff}.btn-s:hover{background:#15803D}
+.btn-s:disabled{background:#86EFAC;cursor:not-allowed}
+.btn-a{background:#D97706;color:#fff}.btn-a:hover{background:#B45309}
+.btn-g{background:#fff;color:#64748B;border:0.5px solid #E2E8F0}.btn-g:hover{background:#F8FAFC}
+.btn-sm{height:28px;padding:0 10px;font-size:11px}
+.btn-grp{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+ 
+/* Review */
+.review-box{display:flex;align-items:center;gap:8px;padding:10px 14px;background:#F0FDF4;border:1px solid #BBF7D0;border-radius:8px;margin-top:10px}
+.review-box label{display:flex;align-items:center;gap:7px;cursor:pointer;font-size:13px;font-weight:600;color:#166534}
+.review-box input[type=checkbox]{width:16px;height:16px;accent-color:#16A34A;cursor:pointer}
+.review-hint{font-size:11px;color:#64748B;margin-left:auto}
+ 
+/* Audit */
+.audit-btn{width:100%;display:flex;align-items:center;justify-content:space-between;padding:8px 12px;background:#F8FAFC;border:0.5px solid #E2E8F0;border-radius:7px;cursor:pointer;font-size:12px;color:#64748B;margin-top:10px;border-top:none;border-left:none;border-right:none;text-align:left}
+.audit-wrap{border:0.5px solid #E2E8F0;border-radius:8px;margin-top:8px;overflow:hidden;display:none}
+.audit-wrap.open{display:block}
+.audit-inner{overflow-x:auto}
+.ath{background:#475569;color:#fff;padding:5px 8px;font-size:10px;font-weight:600;text-align:left;white-space:nowrap}
+.ath2{background:#0066CC;color:#fff;padding:5px 8px;font-size:10px;font-weight:600;text-align:left;white-space:nowrap}
+.atd{padding:5px 8px;border-bottom:0.5px solid #E2E8F0;font-size:11px;white-space:nowrap;background:#F8FAFC}
+.atd2{padding:5px 8px;border-bottom:0.5px solid #E2E8F0;font-size:11px;white-space:nowrap;background:#EBF3FF}
+.asec{background:#1E293B;color:#fff;padding:5px 10px;font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:0.5px}
+ 
+.alert{border-radius:8px;padding:10px 14px;font-size:12px;margin-top:8px}
+.a-ok{background:#F0FDF4;color:#166534;border:1px solid #BBF7D0}
+.a-warn{background:#FFFBEB;color:#92400E;border:1px solid #FCD34D}
+.a-err{background:#FEF2F2;color:#991B1B;border:1px solid #FECACA}
+ 
+.spin{width:13px;height:13px;border:2px solid rgba(255,255,255,0.3);border-top-color:#fff;border-radius:50%;animation:sp 0.7s linear infinite;display:inline-block}
+@keyframes sp{to{transform:rotate(360deg)}}
 .hidden{display:none!important}
-.sep{height:0.5px;background:#E2E8F0;margin:12px 0}
-.pending-badge{background:#FEF3C7;color:#92400E;font-size:11px;font-weight:600;padding:3px 10px;border-radius:6px}
-.audit-xml{background:#F8FAFC;color:#1A2B3C}
-.audit-calc{background:#EBF3FF;color:#0C447C}
-.audit-th-xml{background:#475569;color:#fff;padding:6px 8px;font-size:10px;font-weight:600;text-align:left;white-space:nowrap}
-.audit-th-calc{background:#0066CC;color:#fff;padding:6px 8px;font-size:10px;font-weight:600;text-align:left;white-space:nowrap}
-.audit-td{padding:6px 8px;border-bottom:0.5px solid #E2E8F0;white-space:nowrap;font-size:11px}
-.audit-section{background:#1E293B;color:#fff;padding:6px 10px;font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:0.5px}
-input[type=number]{height:36px;border:0.5px solid #D1D5DB;border-radius:8px;padding:0 10px;font-size:13px;color:#1A2B3C;background:#fff;outline:none;transition:border-color 0.15s}
-input[type=number]:focus{border-color:#0066CC;box-shadow:0 0 0 3px rgba(0,102,204,0.1)}
 </style>
 </head>
 <body>
-
+ 
 <div class="topbar">
-  <div style="display:flex;align-items:center;gap:10px">
-    <span class="logo">IN<span>GRAM</span> MICRO</span>
-    <div style="width:1px;height:18px;background:#E2E8F0"></div>
-    <span style="font-size:12px;color:#64748B;font-weight:500">Renovaciones IBM S&amp;S</span>
+  <div style="display:flex;align-items:center;gap:8px">
+    <span class="logo">Ingram Micro</span>
+    <span style="width:1px;height:14px;background:#E2E8F0;display:inline-block"></span>
+    <span style="font-size:12px;color:#64748B">Renovaciones IBM S&amp;S</span>
   </div>
   <span class="ibm-badge">IBM Authorized Reseller</span>
 </div>
-
-<div class="main">
-
-<div class="step-bar">
-  <div class="step active" id="st1"><div class="snum">1</div><div><div class="slbl">Cargar XML</div><div class="sdesc">IBM PAO</div></div></div>
-  <div class="step" id="st2"><div class="snum">2</div><div><div class="slbl">Revisar quotes</div><div class="sdesc">Marcar revisados</div></div></div>
-  <div class="step" id="st3"><div class="snum">3</div><div><div class="slbl">Descargar</div><div class="sdesc">ZIP por canal</div></div></div>
+ 
+<div class="steps">
+  <div class="step active" id="st1"><div class="sn">1</div>Cargar XML</div>
+  <span class="sarr">›</span>
+  <div class="step" id="st2"><div class="sn">2</div>Revisar quotes</div>
+  <span class="sarr">›</span>
+  <div class="step" id="st3"><div class="sn">3</div>Descargar todo</div>
 </div>
-
+ 
 <!-- UPLOAD -->
-<div class="card" id="card-upload">
-  <div class="card-title">Cargar reporte de IBM Passport Advantage</div>
-  <div class="dropzone" id="dropzone">
-    <input type="file" id="xml-file" accept=".xml">
-    <div style="font-size:28px;margin-bottom:8px">📄</div>
-    <div style="font-size:14px;font-weight:600;margin-bottom:3px">Arrastra el archivo XML aquí</div>
-    <div style="font-size:12px;color:#64748B">o haz clic · Formato: XML for Microsoft Excel de IBM PAO</div>
-  </div>
-  <div id="upload-status" class="hidden"></div>
-</div>
-
-<!-- BARRA DESCARGA MASIVA (aparece cuando hay quotes chequeados) -->
-<div class="bulk-bar hidden" id="bulk-bar">
-  <div class="bulk-info">
-    <div class="bulk-count" id="bulk-count">0</div>
-    <div>
-      <div class="bulk-label" id="bulk-label">quotes listos para descargar</div>
-      <div class="bulk-sub" id="bulk-sub">ZIP organizado por canal · PDF + Excel + Planilla por quote</div>
+<div class="upload-screen" id="upload-screen">
+  <div class="upload-card">
+    <div style="font-size:16px;font-weight:600;color:#0F2B5B;margin-bottom:6px">Cargar reporte de renovaciones</div>
+    <div style="font-size:13px;color:#64748B;margin-bottom:16px">Sube el archivo XML de IBM Passport Advantage para procesar los quotes</div>
+    <div class="dropzone" id="dropzone">
+      <input type="file" id="xml-file" accept=".xml">
+      <div style="font-size:32px;margin-bottom:8px">📄</div>
+      <div style="font-size:14px;font-weight:600;margin-bottom:4px">Arrastra el XML aquí</div>
+      <div style="font-size:12px;color:#64748B">o haz clic para seleccionarlo</div>
     </div>
-  </div>
-  <button class="btn btn-success" id="btn-bulk" onclick="downloadBulk()">
-    ⬇ Descargar ZIP por canal
-  </button>
-</div>
-
-<!-- GLOBAL PARAMS + QUOTE LIST -->
-<div class="card hidden" id="card-quotes">
-  <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:1rem">
-    <div class="card-title" style="margin-bottom:0">Parámetros globales</div>
-    <div id="pending-count"></div>
-  </div>
-  <div class="global-grid">
-    <div class="field"><label>Margen Canal BP</label><div class="sfx-wrap"><input type="number" id="g-bp" value="3" min="0" max="100" step="0.1"><span class="sfx">%</span></div><div class="hint">Descuento sobre MEP</div></div>
-    <div class="field"><label>Margen Ingram</label><div class="sfx-wrap"><input type="number" id="g-ingram" value="2.1" min="0" max="100" step="0.1"><span class="sfx">%</span></div><div class="hint">Interno — no visible al canal</div></div>
-    <div class="field"><label>CVR Renew BP</label><div class="sfx-wrap"><input type="number" id="g-cvr-renew" value="2" min="0" max="100" step="0.1"><span class="sfx">%</span></div><div class="hint">Siempre aplica</div></div>
-    <div class="field"><label>CVR Renew Ingram</label><div class="sfx-wrap"><input type="number" id="g-cvr-renew-ing" value="2" min="0" max="100" step="0.1"><span class="sfx">%</span></div></div>
-    <div class="field"><label>CVR OnTime BP</label><div class="sfx-wrap"><input type="number" id="g-cvr-ontime" value="2" min="0" max="100" step="0.1"><span class="sfx">%</span></div><div class="hint">Solo si renueva a tiempo</div></div>
-    <div class="field"><label>CVR OnTime Ingram</label><div class="sfx-wrap"><input type="number" id="g-cvr-ontime-ing" value="1" min="0" max="100" step="0.1"><span class="sfx">%</span></div></div>
-  </div>
-  <div class="sep"></div>
-  <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">
-    <div style="font-size:12px;font-weight:600;color:#64748B;text-transform:uppercase;letter-spacing:0.5px">
-      Quotes encontrados — revisá cada uno y marcalo como listo
-    </div>
-    <div style="display:flex;gap:6px">
-      <button class="btn btn-outline btn-sm" onclick="checkAll()" id="btn-check-all">✓ Marcar todos</button>
-      <button class="btn btn-outline btn-sm" onclick="uncheckAll()" style="color:#64748B;border-color:#CBD5E1">Desmarcar todos</button>
-    </div>
-  </div>
-  <div class="quote-list" id="quote-list"></div>
-</div>
-
-<!-- EDITOR -->
-<div class="card hidden" id="card-editor">
-  <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:1rem">
-    <div>
-      <div class="card-title" style="margin-bottom:2px" id="editor-title">Quote</div>
-      <div style="font-size:12px;color:#64748B" id="editor-sub"></div>
-    </div>
-    <button class="btn btn-outline btn-sm" onclick="closeEditor()">← Volver</button>
-  </div>
-
-  <div class="editor-box">
-    <div class="editor-box-title">Ajustar parámetros para este quote</div>
-    <div class="fields-row">
-      <div class="field"><label>Margen Canal BP</label><div class="sfx-wrap"><input type="number" id="e-bp" step="0.1"><span class="sfx">%</span></div></div>
-      <div class="field"><label>Margen Ingram</label><div class="sfx-wrap"><input type="number" id="e-ingram" step="0.1"><span class="sfx">%</span></div></div>
-      <div class="field"><label>Dcto adicional cliente</label><div class="sfx-wrap"><input type="number" id="e-extra" value="0" step="0.1"><span class="sfx">%</span></div></div>
-    </div>
-    <div class="toggle-row">
-      <label class="toggle"><input type="checkbox" id="e-cvr-renew" checked><span>CVR Renew BP (<span id="e-crp">2%</span>)</span></label>
-      <label class="toggle"><input type="checkbox" id="e-cvr-ontime"><span>CVR OnTime BP (<span id="e-cop">2%</span>)</span></label>
-    </div>
-    <button class="btn btn-primary btn-sm" onclick="recalc()">Recalcular</button>
-  </div>
-
-  <div class="summary-bar" id="editor-summary"></div>
-
-  <div style="overflow-x:auto">
-    <table>
-      <thead><tr>
-        <th>Part number</th><th>Descripción</th><th>Cobertura</th><th style="text-align:right">Qty</th>
-        <th style="text-align:right">Precio MEP</th><th style="text-align:right">Dcto canal</th>
-        <th style="text-align:right">CVR Renew</th><th style="text-align:right">CVR OnTime</th>
-        <th style="text-align:right">Precio BP</th>
-      </tr></thead>
-      <tbody id="editor-tbody"></tbody>
-    </table>
-  </div>
-
-  <div id="cov-alert" style="margin-top:10px"></div>
-
-  <div class="btn-group">
-    <button class="btn btn-success" id="btn-dl" onclick="downloadQuote()">⬇ Descargar PDF + Excel</button>
-    <button class="btn btn-amber hidden" id="btn-planilla" onclick="downloadPlanilla()">⬇ Planilla IBM</button>
-    <span id="dl-status" style="font-size:12px;color:#64748B"></span>
-  </div>
-
-  <!-- CHECK DE REVISIÓN -->
-  <div class="review-check" id="review-check-box">
-    <input type="checkbox" id="review-check-input" onchange="toggleReviewCheck(this.checked)">
-    <label for="review-check-input">
-      ✓ &nbsp;Quote revisado — marcar como listo para incluir en el ZIP por canal
-    </label>
-    <span class="review-hint" id="review-hint-text"></span>
-  </div>
-
-  <div style="margin-top:16px">
-    <button class="btn btn-outline btn-sm" onclick="toggleAudit()" id="btn-audit" style="width:100%;justify-content:space-between">
-      <span>Vista de auditoría — datos XML vs cálculos</span>
-      <span id="audit-arrow" style="font-size:12px">▼ Expandir</span>
-    </button>
-    <div id="audit-panel" class="hidden" style="margin-top:8px;overflow-x:auto">
-      <table id="audit-table" style="width:100%;border-collapse:collapse;font-size:11px">
-        <thead id="audit-thead"></thead>
-        <tbody id="audit-tbody"></tbody>
-      </table>
-    </div>
+    <div id="upload-status" class="hidden"></div>
   </div>
 </div>
-
+ 
+<!-- MAIN LAYOUT -->
+<div class="main-layout hidden" id="main-layout">
+ 
+  <!-- SIDEBAR -->
+  <div class="sidebar">
+    <div class="sb-head">
+      <div class="sb-title" id="sb-title">Quotes encontrados</div>
+      <div class="sb-meta" id="sb-meta">Selecciona uno para ver el detalle</div>
+    </div>
+ 
+    <div class="params-bar">
+      <div class="params-top" onclick="toggleParams()">
+        <div class="params-pills" id="params-pills"></div>
+        <span class="edit-lnk" id="params-lnk">✎ Editar</span>
+      </div>
+      <div class="params-panel" id="params-panel">
+        <div class="params-grid">
+          <div class="pfield"><label>Margen BP</label><div class="sw"><input type="number" id="g-bp" value="3" min="0" max="100" step="0.1" oninput="updatePills()"><span class="sfx">%</span></div></div>
+          <div class="pfield"><label>Margen Ingram</label><div class="sw"><input type="number" id="g-ingram" value="2.1" min="0" max="100" step="0.1"><span class="sfx">%</span></div></div>
+          <div class="pfield"><label>CVR Renew BP</label><div class="sw"><input type="number" id="g-cvr-renew" value="2" min="0" max="100" step="0.1" oninput="updatePills()"><span class="sfx">%</span></div></div>
+          <div class="pfield"><label>CVR Renew Ingram</label><div class="sw"><input type="number" id="g-cvr-renew-ing" value="2" min="0" max="100" step="0.1"><span class="sfx">%</span></div></div>
+          <div class="pfield"><label>CVR OnTime BP</label><div class="sw"><input type="number" id="g-cvr-ontime" value="2" min="0" max="100" step="0.1" oninput="updatePills()"><span class="sfx">%</span></div></div>
+          <div class="pfield"><label>CVR OnTime Ingram</label><div class="sw"><input type="number" id="g-cvr-ontime-ing" value="1" min="0" max="100" step="0.1"><span class="sfx">%</span></div></div>
+        </div>
+        <div class="params-actions">
+          <button class="btn btn-p btn-sm" onclick="applyParams()">Aplicar</button>
+          <button class="btn btn-g btn-sm" onclick="toggleParams()">Cerrar</button>
+        </div>
+      </div>
+    </div>
+ 
+    <div class="q-list" id="q-list"></div>
+ 
+    <div class="bulk-footer hidden" id="bulk-footer">
+      <div class="bf-row">
+        <div>
+          <div class="bf-info" id="bf-info">0 quotes listos</div>
+          <div class="bf-sub" id="bf-sub"></div>
+        </div>
+        <button class="btn btn-s btn-sm" id="btn-bulk" onclick="downloadBulk()">⬇ ZIP</button>
+      </div>
+    </div>
+  </div>
+ 
+  <!-- DETAIL -->
+  <div class="detail" id="detail">
+    <div class="detail-empty" id="detail-empty">
+      <div class="icon">📋</div>
+      <div style="font-size:14px;font-weight:600;color:#64748B">Selecciona un quote</div>
+      <div style="font-size:12px;color:#94A3B8">Haz clic en cualquier quote de la lista para ver su detalle</div>
+    </div>
+ 
+    <div id="detail-content" class="hidden">
+ 
+      <div class="dcard">
+        <div class="d-title" id="d-title">Quote</div>
+        <div class="d-sub" id="d-sub"></div>
+      </div>
+ 
+      <div class="dcard">
+        <div class="dp-head">
+          <span>Parámetros de este quote</span>
+          <span id="rates-badge" style="font-size:10px;color:#0066CC;font-weight:500"></span>
+        </div>
+        <div class="dp-grid">
+          <div class="dpf"><label>Margen canal BP</label><div class="sw"><input type="number" id="e-bp" step="0.1"><span class="sfx">%</span></div></div>
+          <div class="dpf"><label>Margen Ingram</label><div class="sw"><input type="number" id="e-ingram" step="0.1"><span class="sfx">%</span></div></div>
+          <div class="dpf"><label>Dcto adicional</label><div class="sw"><input type="number" id="e-extra" value="0" step="0.1"><span class="sfx">%</span></div></div>
+        </div>
+        <div class="toggles">
+          <label class="toggle"><input type="checkbox" id="e-cvr-renew" checked onchange="recalc()"> CVR Renew BP (<span id="e-crp">2</span>%)</label>
+          <label class="toggle" id="lbl-ontime"><input type="checkbox" id="e-cvr-ontime" onchange="recalc()"> <span id="ontime-txt">CVR OnTime BP (<span id="e-cop">2</span>%)</span></label>
+        </div>
+        <div style="margin-top:10px">
+          <button class="btn btn-g btn-sm" onclick="recalc()">↻ Recalcular</button>
+        </div>
+      </div>
+ 
+      <div class="scards" id="d-scards"></div>
+ 
+      <div class="dcard">
+        <div class="cov-lines" id="d-cov"></div>
+        <div class="tbl-wrap">
+          <table>
+            <thead><tr>
+              <th>Part number</th><th>Descripción</th><th>Cobertura</th>
+              <th style="text-align:right">Qty</th><th style="text-align:right">MEP</th>
+              <th style="text-align:right">Dcto canal</th><th style="text-align:right">CVR Renew</th>
+              <th style="text-align:right">CVR OnTime</th><th style="text-align:right">Precio BP</th>
+            </tr></thead>
+            <tbody id="d-tbody"></tbody>
+          </table>
+        </div>
+        <div class="btn-grp">
+          <button class="btn btn-p" id="btn-dl" onclick="downloadQuote()">⬇ Descargar PDF + Excel</button>
+          <button class="btn btn-a hidden" id="btn-planilla" onclick="downloadPlanilla()">⬇ Planilla IBM</button>
+          <span id="dl-status" style="font-size:12px;color:#64748B"></span>
+        </div>
+        <div class="review-box">
+          <input type="checkbox" id="review-chk" onchange="toggleReview(this.checked)">
+          <label for="review-chk">✓ &nbsp;Quote revisado — marcar como listo para el ZIP</label>
+          <span class="review-hint" id="review-hint"></span>
+        </div>
+      </div>
+ 
+      <div class="dcard" style="padding:0;overflow:hidden">
+        <button class="audit-btn" onclick="toggleAudit()">
+          <span>Vista de auditoría — datos XML vs cálculos</span>
+          <span id="audit-arr">▼ Expandir</span>
+        </button>
+        <div class="audit-wrap" id="audit-wrap">
+          <div class="audit-inner">
+            <table style="width:100%;border-collapse:collapse;font-size:11px">
+              <thead id="audit-thead"></thead>
+              <tbody id="audit-tbody"></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+ 
+    </div>
+  </div>
 </div>
-
+ 
 <script>
-const API = window.location.origin;
-let allQuotes = {}, covAlerts = {}, currentQ = null, currentLines = [];
-let selectedFile = null;
-// quoteParams guarda los parámetros con los que se descargó cada quote
-let quoteParams = {};
-
-const fmt = n => Number(n).toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2});
-
+const API=window.location.origin;
+let allQuotes={},covAlerts={},currentQ=null,currentLines=[],selectedFile=null,quoteParams={};
+const fmt=n=>Number(n).toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2});
+ 
+async function loadRates(){
+  try{
+    const r=await fetch(API+'/renewals/rates').then(x=>x.json());
+    if(!r.success)return;
+    document.getElementById('g-bp').value=r.bp_margin;
+    document.getElementById('g-ingram').value=r.ingram_margin;
+    document.getElementById('g-cvr-renew').value=r.cvr_renew_bp;
+    document.getElementById('g-cvr-renew-ing').value=r.cvr_renew_ingram;
+    document.getElementById('g-cvr-ontime').value=r.cvr_ontime_bp;
+    document.getElementById('g-cvr-ontime-ing').value=r.cvr_ontime_ingram;
+    const b=document.getElementById('rates-badge');
+    if(b)b.textContent=r.label||'';
+    updatePills();
+  }catch(e){}
+}
+loadRates();
+ 
+function getG(){
+  return{
+    bp:parseFloat(document.getElementById('g-bp').value)||2,
+    ingram:parseFloat(document.getElementById('g-ingram').value)||1,
+    cvrRenew:parseFloat(document.getElementById('g-cvr-renew').value)||2,
+    cvrRenewIng:parseFloat(document.getElementById('g-cvr-renew-ing').value)||1,
+    cvrOntime:parseFloat(document.getElementById('g-cvr-ontime').value)||2,
+    cvrOntimeIng:parseFloat(document.getElementById('g-cvr-ontime-ing').value)||1,
+  };
+}
+ 
+function updatePills(){
+  const g=getG();
+  document.getElementById('params-pills').innerHTML=
+    `<span class="pill">BP <strong>${g.bp}%</strong></span>`+
+    `<span class="pill">Ingram <strong>${g.ingram}%</strong></span>`+
+    `<span class="pill">CVR Renew <strong>${g.cvrRenew}%</strong></span>`+
+    `<span class="pill">OnTime <strong>${g.cvrOntime}%</strong></span>`;
+}
+ 
+function toggleParams(){
+  const p=document.getElementById('params-panel');
+  const open=p.classList.toggle('open');
+  document.getElementById('params-lnk').textContent=open?'✕ Cerrar':'✎ Editar';
+}
+ 
+function applyParams(){
+  updatePills();
+  toggleParams();
+  if(currentQ)openEditor(currentQ);
+}
+ 
 function setStep(n){
   for(let i=1;i<=3;i++){
     const el=document.getElementById('st'+i);
     el.className='step'+(i<n?' done':i===n?' active':'');
   }
 }
-
-function getG(){
-  return {
-    bp:          parseFloat(document.getElementById('g-bp').value)||3,
-    ingram:      parseFloat(document.getElementById('g-ingram').value)||2.1,
-    cvrRenew:    parseFloat(document.getElementById('g-cvr-renew').value)||2,
-    cvrRenewIng: parseFloat(document.getElementById('g-cvr-renew-ing').value)||2,
-    cvrOntime:   parseFloat(document.getElementById('g-cvr-ontime').value)||2,
-    cvrOntimeIng:parseFloat(document.getElementById('g-cvr-ontime-ing').value)||1,
-  };
-}
-
-function calcLine(line, bp, cvrRenew, cvrOntime, extra, useRenew, useOntime){
-  const mep = parseFloat(line.extended_price||0);
-  const costoCanal = +(mep*(1-bp/100)).toFixed(2);
-  const rv  = useRenew  ? +(mep*(cvrRenew/100)).toFixed(2)  : 0;
-  const ot  = useOntime && line.ontime ? +(mep*(cvrOntime/100)).toFixed(2) : 0;
-  const ex  = +(costoCanal*(extra/100)).toFixed(2);
-  const finalBP = +(costoCanal - rv - ot - ex).toFixed(2);
-  return {mep, costoCanal, rv, ot, finalBP};
-}
-
+ 
 async function handleFile(file){
-  if(!file||!file.name.endsWith('.xml')) return;
-  selectedFile = file;
-  const st = document.getElementById('upload-status');
-  st.className='alert alert-success'; st.textContent='Procesando...'; st.classList.remove('hidden');
-  const fd = new FormData(); fd.append('file', file);
+  if(!file||!file.name.endsWith('.xml'))return;
+  selectedFile=file;
+  const st=document.getElementById('upload-status');
+  st.className='alert a-ok';st.textContent='Procesando...';st.classList.remove('hidden');
+  const fd=new FormData();fd.append('file',file);
   try{
-    const res = await fetch(API+'/renewals/parse-renewal-report',{method:'POST',body:fd});
-    const data = await res.json();
-    if(!data.success) throw new Error(data.error);
-    allQuotes = data.quotes||{};
-    covAlerts = data.coverage_alerts||{};
-    // Inicializar estado de check
-    Object.keys(allQuotes).forEach(qn => {
-      allQuotes[qn]._checked  = false;
-      allQuotes[qn]._downloaded = false;
-    });
-    const al = Object.keys(covAlerts).length;
-    st.className = al>0?'alert alert-warning':'alert alert-success';
-    st.innerHTML = `✓ ${data.total_quotes} quote(s) · ${data.total_lines} líneas`+(al>0?` · <strong>${al} con alerta de coverage</strong>`:'');
-    renderQuoteList();
-    document.getElementById('card-quotes').classList.remove('hidden');
+    const res=await fetch(API+'/renewals/parse-renewal-report',{method:'POST',body:fd});
+    const data=await res.json();
+    if(!data.success)throw new Error(data.error);
+    allQuotes=data.quotes||{};
+    covAlerts=data.coverage_alerts||{};
+    Object.keys(allQuotes).forEach(qn=>{allQuotes[qn]._checked=false;allQuotes[qn]._downloaded=false;});
+    document.getElementById('upload-screen').classList.add('hidden');
+    document.getElementById('main-layout').classList.remove('hidden');
+    updatePills();
+    renderList();
     setStep(2);
   }catch(e){
-    st.className='alert alert-error'; st.textContent='Error: '+e.message;
+    st.className='alert a-err';st.textContent='Error: '+e.message;
   }
 }
-
-// ── Render lista de quotes ────────────────────────────────────────────────────
-function renderQuoteList(){
-  const container = document.getElementById('quote-list');
-  container.innerHTML='';
-
-  const total    = Object.keys(allQuotes).length;
-  const checked  = Object.values(allQuotes).filter(q=>q._checked).length;
-  const pending  = total - checked;
-
-  // Actualizar contador superior
-  const pc = document.getElementById('pending-count');
-  if(pending === 0 && total > 0){
-    pc.innerHTML='<span style="font-size:12px;color:#16A34A;font-weight:600">✓ Todos marcados como listos</span>';
-    setStep(3);
-  } else {
-    pc.innerHTML=`<span class="pending-badge">${pending} pendiente(s)</span>`;
-    if(checked > 0) setStep(2);
+ 
+function renderList(){
+  const total=Object.keys(allQuotes).length;
+  const checked=Object.values(allQuotes).filter(q=>q._checked).length;
+  document.getElementById('sb-title').textContent=`${total} quote(s) encontrados`;
+  document.getElementById('sb-meta').textContent=
+    checked>0?`${checked} listo(s) · ${total-checked} pendiente(s)`:'Selecciona uno para ver el detalle';
+  if(checked===total&&total>0)setStep(3);
+ 
+  const bf=document.getElementById('bulk-footer');
+  if(checked>0){
+    bf.classList.remove('hidden');
+    const totalUSD=Object.values(allQuotes).filter(q=>q._checked).reduce((s,q)=>s+parseFloat(q.total_ibm||0),0);
+    document.getElementById('bf-info').textContent=`${checked} quote(s) listos · $${fmt(totalUSD)} USD`;
+    const canales={};
+    Object.values(allQuotes).filter(q=>q._checked).forEach(q=>{
+      const r=(q.lines&&q.lines[0]&&q.lines[0].reseller||'').replace(/^\d+\s*/,'').trim();
+      canales[r]=(canales[r]||0)+1;
+    });
+    document.getElementById('bf-sub').textContent=Object.keys(canales).join(', ');
+  }else{
+    bf.classList.add('hidden');
   }
-
-  // Barra de descarga masiva
-  updateBulkBar();
-
-  Object.entries(allQuotes).forEach(([qn, qdata])=>{
-    const hasAlert   = !!covAlerts[qn];
-    const customer   = (qdata.customer||'').replace(/^\d+-/,'').replace(/,.*$/,'').trim();
-    const reseller   = (qdata.lines&&qdata.lines[0]&&qdata.lines[0].reseller||'').replace(/^\d+\s*/,'').trim();
-    const isChecked  = !!qdata._checked;
-    const isDl       = !!qdata._downloaded;
-
-    const div = document.createElement('div');
-    div.className = 'q-row' + (isChecked?' checked':'') + (currentQ===qn?' selected':'');
-    div.id = `qrow-${qn}`;
-
-    div.innerHTML = `
-      <div class="q-check-col" onclick="event.stopPropagation(); toggleCheck('${qn}')">
-        <div class="q-checkbox${isChecked?' checked':''}" id="qchk-${qn}"></div>
+ 
+  const container=document.getElementById('q-list');
+  container.innerHTML='';
+  Object.entries(allQuotes).forEach(([qn,qdata])=>{
+    const hasWarn=!!covAlerts[qn];
+    const isReady=!!qdata._checked;
+    const isSel=currentQ===qn;
+    const customer=(qdata.customer||'').replace(/^\d+-/,'').replace(/,.*$/,'').trim();
+    const reseller=(qdata.lines&&qdata.lines[0]&&qdata.lines[0].reseller||'').replace(/^\d+\s*/,'').trim();
+    const div=document.createElement('div');
+    div.className='q-item'+(isReady?' ready':'')+(hasWarn?' has-warn':'')+(isSel?' sel':'');
+    div.id='qrow-'+qn;
+    div.innerHTML=`
+      <div class="chk${isReady?' on':''}" onclick="event.stopPropagation();toggleCheck('${qn}')">${isReady?'✓':''}</div>
+      <div class="qi-body" onclick="openEditor('${qn}')">
+        <div class="qi-num">${qn}</div>
+        <div class="qi-cust">${customer}${reseller?' · '+reseller:''}</div>
       </div>
-      <div class="q-info" onclick="openEditor('${qn}')">
-        <div class="q-num">Quote ${qn}</div>
-        <div class="q-customer">${customer}${reseller?' · '+reseller:''}</div>
-      </div>
-      <div class="q-badges" onclick="openEditor('${qn}')">
-        <span class="b-lines">${qdata.line_count} línea(s)</span>
-        ${hasAlert?'<span class="b-warn">⚠ Coverage</span>':''}
-        ${isDl?'<span class="b-dl">⬇ Descargado</span>':''}
-        ${isChecked?'<span class="b-done">✓ Listo</span>':''}
-      </div>
-      <div class="q-total-col" onclick="openEditor('${qn}')">
-        <div class="q-total">$${fmt(qdata.total_ibm)}</div>
-        <div class="q-total-sub">USD MEP</div>
-      </div>
-    `;
+      <div class="qi-right" onclick="openEditor('${qn}')">
+        <div class="qi-amt">$${fmt(qdata.total_ibm)}</div>
+        ${hasWarn?'<span class="qtag qtag-warn">⚠ Coverage</span>':isReady?'<span class="qtag qtag-ok">✓ Listo</span>':'<span class="qtag qtag-gray">Pendiente</span>'}
+      </div>`;
     container.appendChild(div);
   });
 }
-
-// ── Check individual ──────────────────────────────────────────────────────────
+ 
 function toggleCheck(qn){
-  allQuotes[qn]._checked = !allQuotes[qn]._checked;
-  // Si estamos en el editor de ese quote, sincronizar checkbox interno
-  if(currentQ === qn){
-    document.getElementById('review-check-input').checked = allQuotes[qn]._checked;
+  allQuotes[qn]._checked=!allQuotes[qn]._checked;
+  if(currentQ===qn){
+    document.getElementById('review-chk').checked=allQuotes[qn]._checked;
     updateReviewHint();
   }
-  renderQuoteList();
+  renderList();
 }
-
-function checkAll(){
-  Object.keys(allQuotes).forEach(qn => allQuotes[qn]._checked = true);
-  if(currentQ) {
-    document.getElementById('review-check-input').checked = true;
-    updateReviewHint();
-  }
-  renderQuoteList();
-}
-
-function uncheckAll(){
-  Object.keys(allQuotes).forEach(qn => allQuotes[qn]._checked = false);
-  if(currentQ) {
-    document.getElementById('review-check-input').checked = false;
-    updateReviewHint();
-  }
-  renderQuoteList();
-}
-
-// Desde el editor
-function toggleReviewCheck(checked){
-  if(!currentQ) return;
-  allQuotes[currentQ]._checked = checked;
+ 
+function toggleReview(checked){
+  if(!currentQ)return;
+  allQuotes[currentQ]._checked=checked;
   updateReviewHint();
-  renderQuoteList();
+  renderList();
 }
-
+ 
 function updateReviewHint(){
-  if(!currentQ) return;
-  const hint = document.getElementById('review-hint-text');
-  const q = allQuotes[currentQ];
-  if(q._checked){
-    hint.textContent = q._downloaded
-      ? '✓ Incluido en el próximo ZIP — ya fue descargado individualmente'
-      : '✓ Se incluirá en el ZIP por canal al descargar';
-    hint.style.color = '#16A34A';
-  } else {
-    hint.textContent = 'Sin marcar — no se incluirá en la descarga masiva';
-    hint.style.color = '#94A3B8';
-  }
+  if(!currentQ)return;
+  const hint=document.getElementById('review-hint');
+  const ok=allQuotes[currentQ]._checked;
+  hint.textContent=ok?'✓ Se incluirá en el ZIP':'No se incluirá en la descarga masiva';
+  hint.style.color=ok?'#16A34A':'#94A3B8';
 }
-
-// ── Barra descarga masiva ─────────────────────────────────────────────────────
-function updateBulkBar(){
-  const checked = Object.values(allQuotes).filter(q=>q._checked);
-  const bar = document.getElementById('bulk-bar');
-  const btn = document.getElementById('btn-bulk');
-
-  if(checked.length === 0){
-    bar.classList.add('hidden');
-    return;
-  }
-
-  bar.classList.remove('hidden');
-  document.getElementById('bulk-count').textContent = checked.length;
-
-  // Agrupar por canal para mostrar en el label
-  const canales = {};
-  checked.forEach(q => {
-    const r = (q.lines&&q.lines[0]&&q.lines[0].reseller||'SIN CANAL').replace(/^\d+\s*/,'').trim();
-    canales[r] = (canales[r]||0) + 1;
-  });
-  const canalList = Object.entries(canales).map(([c,n])=>`${c} (${n})`).join(', ');
-  const totalUSD = checked.reduce((s,q)=>s+parseFloat(q.total_ibm||0),0);
-
-  document.getElementById('bulk-label').textContent =
-    checked.length === 1
-      ? `1 quote listo — $${fmt(totalUSD)} USD MEP`
-      : `${checked.length} quotes listos — $${fmt(totalUSD)} USD MEP`;
-  document.getElementById('bulk-sub').textContent =
-    `Canales: ${canalList} · ZIP con carpeta por canal`;
-
-  btn.disabled = false;
-  btn.innerHTML = `⬇ Descargar ZIP por canal`;
-}
-
-// ── Descarga masiva ───────────────────────────────────────────────────────────
-async function downloadBulk(){
-  const checked = Object.entries(allQuotes).filter(([,q])=>q._checked);
-  if(checked.length === 0) return;
-
-  const btn = document.getElementById('btn-bulk');
-  btn.disabled = true;
-  btn.innerHTML = '<span class="spinner"></span> Generando ZIP...';
-
-  const g = getG();
-
-  // Generar quote por quote y acumular blobs en memoria
-  // Usamos la misma lógica que downloadQuote() pero para todos los chequeados
-  // El backend ya genera el ZIP con estructura {año}/{reseller}/ por quote
-  // Para el ZIP maestro por canal hacemos una petición por quote y los agrupamos en JS
-
-  try {
-    // Construir ZIP maestro en el servidor enviando todos los quotes chequeados
-    // Enviamos los quote_numbers como lista y dejamos que el backend los agrupe
-    const quoteNumbers = checked.map(([qn])=>qn);
-
-    const fd = new FormData();
-    fd.append('file', selectedFile);
-    fd.append('bp_margin',         g.bp);
-    fd.append('ingram_margin',      g.ingram);
-    fd.append('cvr_renew_bp',       g.cvrRenew);
-    fd.append('cvr_renew_ingram',   g.cvrRenewIng);
-    fd.append('cvr_ontime_bp',      g.cvrOntime);
-    fd.append('cvr_ontime_ingram',  g.cvrOntimeIng);
-    // Enviar los quote numbers chequeados para que el backend filtre
-    fd.append('quote_numbers', JSON.stringify(quoteNumbers));
-    // Parámetros individuales por quote (si fueron ajustados en el editor)
-    fd.append('quote_params', JSON.stringify(quoteParams));
-
-    const res = await fetch(API+'/renewals/generate-bulk',{method:'POST',body:fd});
-    if(!res.ok){
-      const err = await res.json().catch(()=>({error:'Error del servidor'}));
-      throw new Error(err.error||'Error del servidor');
-    }
-
-    const blob = await res.blob();
-    const url  = URL.createObjectURL(blob);
-    const a    = document.createElement('a');
-    const cd   = res.headers.get('Content-Disposition')||'';
-    const m    = cd.match(/filename="?([^"]+)"?/);
-    // Nombre del ZIP: fecha + cantidad de quotes
-    const today = new Date().toISOString().slice(0,10).replace(/-/g,'');
-    a.download = m ? m[1] : `IBM_SS_Renovaciones_${today}_${quoteNumbers.length}quotes.zip`;
-    a.href = url; a.click(); URL.revokeObjectURL(url);
-
-    // Marcar como descargados
-    quoteNumbers.forEach(qn => { allQuotes[qn]._downloaded = true; });
-    renderQuoteList();
-
-  } catch(e){
-    alert('Error al generar ZIP: ' + e.message);
-  } finally {
-    btn.disabled = false;
-    btn.innerHTML = '⬇ Descargar ZIP por canal';
-  }
-}
-
-// ── Editor ────────────────────────────────────────────────────────────────────
+ 
 function openEditor(qn){
-  currentQ = qn;
-  const qdata = allQuotes[qn];
-  currentLines = (qdata.lines||[]).map(l=>({...l, ontime: qdata.ontime||false}));
-  const customer = (qdata.customer||'').replace(/^\d+-/,'').replace(/,.*$/,'').trim();
-  document.getElementById('editor-title').textContent = 'Quote ' + qn;
-  document.getElementById('editor-sub').textContent = customer+(currentLines[0]?.coverage_dates?' · '+currentLines[0].coverage_dates:'');
-
-  const g = getG();
-  const savedP = quoteParams[qn] || {};
-  document.getElementById('e-bp').value     = savedP.bp     || g.bp;
-  document.getElementById('e-ingram').value  = savedP.ingram || g.ingram;
-  document.getElementById('e-extra').value   = savedP.extra  || 0;
-  document.getElementById('e-cvr-renew').checked  = savedP.useRenew  !== undefined ? savedP.useRenew  : true;
-  document.getElementById('e-cvr-ontime').checked = savedP.useOntime !== undefined ? savedP.useOntime : false;
-  document.getElementById('e-crp').textContent = g.cvrRenew+'%';
-  document.getElementById('e-cop').textContent = g.cvrOntime+'%';
-
-  // Coverage alerts
-  const ca  = document.getElementById('cov-alert');
-  const bpl = document.getElementById('btn-planilla');
-  const lines = qdata.lines||[];
-  const errLines = (covAlerts[qn]||[]);
-
-  if(errLines.length > 0){
-    bpl.classList.remove('hidden');
-    let html = '<div style="display:flex;flex-direction:column;gap:6px">';
-    lines.forEach(line=>{
-      const err = errLines.find(e=>e.part_number===line.part_number);
-      if(err){
-        html += `<div style="display:flex;align-items:center;gap:8px;background:#FEF3C7;border:0.5px solid #FCD34D;border-radius:6px;padding:7px 12px;font-size:12px">
-          <span style="color:#D97706;font-size:14px">⚠</span>
-          <span><strong>${err.part_number}</strong> · Coverage incorrecto: <strong>${err.months} mes(es)</strong> → correcto hasta <strong>${err.correct_end}</strong></span>
-        </div>`;
-      } else {
-        html += `<div style="display:flex;align-items:center;gap:8px;background:#F0FDF4;border:0.5px solid #BBF7D0;border-radius:6px;padding:7px 12px;font-size:12px">
-          <span style="color:#16A34A;font-size:14px">✓</span>
-          <span><strong>${line.part_number}</strong> · Coverage correcto: 12 meses</span>
-        </div>`;
-      }
-    });
-    html += '</div>';
-    ca.innerHTML = html;
-  } else {
-    bpl.classList.add('hidden');
-    let html = '<div style="display:flex;flex-direction:column;gap:6px">';
-    lines.forEach(line=>{
-      html += `<div style="display:flex;align-items:center;gap:8px;background:#F0FDF4;border:0.5px solid #BBF7D0;border-radius:6px;padding:7px 12px;font-size:12px">
-        <span style="color:#16A34A;font-size:14px">✓</span>
-        <span><strong>${line.part_number}</strong> · Coverage correcto: 12 meses</span>
-      </div>`;
-    });
-    html += '</div>';
-    ca.innerHTML = html;
+  currentQ=qn;
+  const qdata=allQuotes[qn];
+  currentLines=(qdata.lines||[]).map(l=>({...l,ontime:qdata.ontime||false}));
+  const customer=(qdata.customer||'').replace(/^\d+-/,'').replace(/,.*$/,'').trim();
+  const reseller=(currentLines[0]?.reseller||'').replace(/^\d+\s*/,'').trim();
+  document.getElementById('d-title').textContent='Quote '+qn+' — '+customer;
+  document.getElementById('d-sub').textContent=reseller+(currentLines[0]?.coverage_dates?' · '+currentLines[0].coverage_dates:'');
+  const g=getG();
+  const p=quoteParams[qn]||{};
+  document.getElementById('e-bp').value=p.bp||g.bp;
+  document.getElementById('e-ingram').value=p.ingram||g.ingram;
+  document.getElementById('e-extra').value=p.extra||0;
+  document.getElementById('e-cvr-renew').checked=p.useRenew!==undefined?p.useRenew:true;
+  document.getElementById('e-crp').textContent=g.cvrRenew;
+  document.getElementById('e-cop').textContent=g.cvrOntime;
+ 
+  // OnTime
+  const isOntime=!!(currentLines[0]&&currentLines[0].ontime);
+  const oc=document.getElementById('e-cvr-ontime');
+  const ol=document.getElementById('lbl-ontime');
+  if(!isOntime){
+    oc.checked=false;oc.disabled=true;
+    ol.style.opacity='0.4';ol.style.cursor='not-allowed';ol.title='Fecha vencida';
+    document.getElementById('ontime-txt').textContent=`CVR OnTime BP (${g.cvrOntime}%) — vencido`;
+  }else{
+    oc.checked=p.useOntime!==undefined?p.useOntime:true;
+    oc.disabled=false;ol.style.opacity='1';ol.style.cursor='pointer';ol.title='';
+    document.getElementById('ontime-txt').textContent=`CVR OnTime BP (${g.cvrOntime}%)`;
   }
-
-  // Sincronizar checkbox de revisión
-  const chk = document.getElementById('review-check-input');
-  chk.checked = !!allQuotes[qn]._checked;
+ 
+  // Coverage
+  const errLines=covAlerts[qn]||[];
+  document.getElementById('btn-planilla').classList.toggle('hidden',errLines.length===0);
+  const covDiv=document.getElementById('d-cov');
+  covDiv.innerHTML=currentLines.map(line=>{
+    const err=errLines.find(e=>e.part_number===line.part_number);
+    return err
+      ?`<div class="cl cl-warn">⚠ <strong>${err.part_number}</strong> — Coverage incorrecto: ${err.months} mes(es) · Corregir hasta ${err.correct_end}</div>`
+      :`<div class="cl cl-ok">✓ <strong>${line.part_number}</strong> — Coverage correcto: 12 meses</div>`;
+  }).join('');
+ 
+  document.getElementById('review-chk').checked=!!allQuotes[qn]._checked;
   updateReviewHint();
-
   recalc();
-  document.getElementById('card-editor').classList.remove('hidden');
-  document.getElementById('card-editor').scrollIntoView({behavior:'smooth',block:'start'});
-  renderQuoteList();
+  document.getElementById('detail-empty').classList.add('hidden');
+  document.getElementById('detail-content').classList.remove('hidden');
+  renderList();
+  document.getElementById('detail').scrollTo({top:0,behavior:'smooth'});
 }
-
+ 
+function calcLine(line,bp,cvrRenew,cvrOntime,extra,useRenew,useOntime){
+  const mep=parseFloat(line.extended_price||0);
+  const cc=+(mep*(1-bp/100)).toFixed(2);
+  const rv=useRenew?+(mep*(cvrRenew/100)).toFixed(2):0;
+  const ot=useOntime&&line.ontime?+(mep*(cvrOntime/100)).toFixed(2):0;
+  const ex=+(cc*(extra/100)).toFixed(2);
+  return{mep,cc,rv,ot,finalBP:+(cc-rv-ot-ex).toFixed(2)};
+}
+ 
 function recalc(){
-  const g = getG();
-  const bp = parseFloat(document.getElementById('e-bp').value)||g.bp;
-  const extra = parseFloat(document.getElementById('e-extra').value)||0;
-  const useRenew  = document.getElementById('e-cvr-renew').checked;
-  const useOntime = document.getElementById('e-cvr-ontime').checked;
-  let tMep=0, tCanal=0, tRv=0, tOt=0, tFinal=0;
-  const tbody = document.getElementById('editor-tbody');
+  const g=getG();
+  const bp=parseFloat(document.getElementById('e-bp').value)||g.bp;
+  const extra=parseFloat(document.getElementById('e-extra').value)||0;
+  const useRenew=document.getElementById('e-cvr-renew').checked;
+  const useOntime=document.getElementById('e-cvr-ontime').checked;
+  let tM=0,tC=0,tRv=0,tOt=0,tF=0;
+  const tbody=document.getElementById('d-tbody');
   tbody.innerHTML='';
-
   currentLines.forEach(line=>{
-    const c = calcLine(line, bp, g.cvrRenew, g.cvrOntime, extra, useRenew, useOntime);
-    tMep+=c.mep; tCanal+=c.costoCanal; tRv+=c.rv; tOt+=c.ot; tFinal+=c.finalBP;
-    line._calc = c;
-    const desc = (line.part_description||'—').substring(0,42)+'...';
-    const cov = (line.coverage_dates||'').replace(' To ','→');
-    const tr = document.createElement('tr');
+    const c=calcLine(line,bp,g.cvrRenew,g.cvrOntime,extra,useRenew,useOntime);
+    tM+=c.mep;tC+=c.cc;tRv+=c.rv;tOt+=c.ot;tF+=c.finalBP;
+    const cov=(line.coverage_dates||'').replace(' To ','→');
+    const tr=document.createElement('tr');
     tr.innerHTML=`
       <td><strong>${line.part_number||'—'}</strong></td>
-      <td style="font-size:11px">${desc}</td>
+      <td style="font-size:11px">${(line.part_description||'').substring(0,35)}...</td>
       <td style="font-size:11px;white-space:nowrap">${cov}</td>
       <td style="text-align:right">${line.quantity||1}</td>
       <td style="text-align:right;color:#64748B">$${fmt(c.mep)}</td>
-      <td style="text-align:right;color:#DC2626">-$${fmt(c.mep-c.costoCanal)}</td>
+      <td style="text-align:right;color:#DC2626">-$${fmt(c.mep-c.cc)}</td>
       <td style="text-align:right;color:#16A34A">${useRenew?'-$'+fmt(c.rv):'—'}</td>
       <td style="text-align:right;color:#16A34A">${useOntime&&line.ontime?'-$'+fmt(c.ot):'—'}</td>
-      <td style="text-align:right;font-weight:600">$${fmt(c.finalBP)}</td>
-    `;
+      <td style="text-align:right;font-weight:600">$${fmt(c.finalBP)}</td>`;
     tbody.appendChild(tr);
   });
-
-  const tr = document.createElement('tr');
+  const tr=document.createElement('tr');
   tr.className='tot-row';
   tr.innerHTML=`<td colspan="4" style="text-align:right">Total</td>
-    <td style="text-align:right">$${fmt(tMep)}</td>
-    <td style="text-align:right">-$${fmt(tMep-tCanal)}</td>
+    <td style="text-align:right">$${fmt(tM)}</td>
+    <td style="text-align:right">-$${fmt(tM-tC)}</td>
     <td style="text-align:right">-$${fmt(tRv)}</td>
     <td style="text-align:right">-$${fmt(tOt)}</td>
-    <td style="text-align:right">$${fmt(tFinal)}</td>`;
+    <td style="text-align:right">$${fmt(tF)}</td>`;
   tbody.appendChild(tr);
-
-  document.getElementById('editor-summary').innerHTML=`
-    <div class="scard"><div class="scard-lbl">Precio MEP total</div><div class="scard-val">$${fmt(tMep)}</div></div>
-    <div class="scard"><div class="scard-lbl">Total descuentos</div><div class="scard-val red">-$${fmt(tMep-tFinal)}</div></div>
-    <div class="scard"><div class="scard-lbl">Precio final BP</div><div class="scard-val blue">$${fmt(tFinal)}</div></div>
-  `;
+  document.getElementById('d-scards').innerHTML=`
+    <div class="sc"><div class="sc-lbl">Precio MEP total</div><div class="sc-val">$${fmt(tM)}</div></div>
+    <div class="sc"><div class="sc-lbl">Nota de descuento</div><div class="sc-val g">$${fmt(tM-tF)}</div></div>
+    <div class="sc"><div class="sc-lbl">Precio final canal</div><div class="sc-val b">$${fmt(tF)}</div></div>`;
 }
-
-function closeEditor(){
-  // Guardar parámetros actuales del editor para usarlos en descarga masiva
-  if(currentQ){
-    const g = getG();
-    quoteParams[currentQ] = {
-      bp:         parseFloat(document.getElementById('e-bp').value)||g.bp,
-      ingram:     parseFloat(document.getElementById('e-ingram').value)||g.ingram,
-      extra:      parseFloat(document.getElementById('e-extra').value)||0,
-      useRenew:   document.getElementById('e-cvr-renew').checked,
-      useOntime:  document.getElementById('e-cvr-ontime').checked,
-      cvrRenew:   g.cvrRenew,
-      cvrOntime:  g.cvrOntime,
-      cvrRenewIng:g.cvrRenewIng,
-      cvrOntimeIng:g.cvrOntimeIng,
-    };
-  }
-  document.getElementById('card-editor').classList.add('hidden');
-  currentQ = null;
-  renderQuoteList();
+ 
+async function downloadBulk(){
+  const checked=Object.entries(allQuotes).filter(([,q])=>q._checked);
+  if(!checked.length)return;
+  const btn=document.getElementById('btn-bulk');
+  btn.disabled=true;btn.innerHTML='<span class="spin"></span>';
+  const g=getG();
+  try{
+    const fd=new FormData();
+    fd.append('file',selectedFile);
+    fd.append('bp_margin',g.bp);fd.append('ingram_margin',g.ingram);
+    fd.append('cvr_renew_bp',g.cvrRenew);fd.append('cvr_renew_ingram',g.cvrRenewIng);
+    fd.append('cvr_ontime_bp',g.cvrOntime);fd.append('cvr_ontime_ingram',g.cvrOntimeIng);
+    fd.append('quote_numbers',JSON.stringify(checked.map(([qn])=>qn)));
+    fd.append('quote_params',JSON.stringify(quoteParams));
+    const res=await fetch(API+'/renewals/generate-bulk',{method:'POST',body:fd});
+    if(!res.ok)throw new Error((await res.json().catch(()=>({error:'Error'}))).error);
+    const blob=await res.blob();
+    const url=URL.createObjectURL(blob);
+    const a=document.createElement('a');
+    const m=(res.headers.get('Content-Disposition')||'').match(/filename="?([^"]+)"?/);
+    a.download=m?m[1]:`IBM_SS_${new Date().toISOString().slice(0,10).replace(/-/g,'')}_${checked.length}quotes.zip`;
+    a.href=url;a.click();URL.revokeObjectURL(url);
+    checked.forEach(([qn])=>allQuotes[qn]._downloaded=true);
+    renderList();
+  }catch(e){alert('Error: '+e.message);}
+  finally{btn.disabled=false;btn.innerHTML='⬇ ZIP';}
 }
-
+ 
 async function downloadQuote(){
-  const btn = document.getElementById('btn-dl');
-  const status = document.getElementById('dl-status');
-  btn.disabled=true; btn.innerHTML='<span class="spinner"></span> Generando...';
-  status.textContent='';
+  const btn=document.getElementById('btn-dl');
+  const status=document.getElementById('dl-status');
+  btn.disabled=true;btn.innerHTML='<span class="spin"></span> Generando...';status.textContent='';
   try{
-    const g = getG();
-    const bp     = parseFloat(document.getElementById('e-bp').value)||g.bp;
-    const ingram = parseFloat(document.getElementById('e-ingram').value)||g.ingram;
-    const extra  = parseFloat(document.getElementById('e-extra').value)||0;
-    const useRenew  = document.getElementById('e-cvr-renew').checked;
-    const useOntime = document.getElementById('e-cvr-ontime').checked;
-    const fd = new FormData();
-    fd.append('file', selectedFile);
-    fd.append('bp_margin', bp);
-    fd.append('ingram_margin', ingram);
-    fd.append('extra_discount', extra);
-    fd.append('cvr_renew_bp',      useRenew  ? g.cvrRenew    : 0);
-    fd.append('cvr_renew_ingram',  useRenew  ? g.cvrRenewIng : 0);
-    fd.append('cvr_ontime_bp',     useOntime ? g.cvrOntime   : 0);
-    fd.append('cvr_ontime_ingram', useOntime ? g.cvrOntimeIng: 0);
-    fd.append('quote_filter', currentQ);
-    const res = await fetch(API+'/renewals/generate-quote',{method:'POST',body:fd});
-    if(!res.ok) throw new Error((await res.json()).error||'Error del servidor');
-    const blob = await res.blob();
-    const url  = URL.createObjectURL(blob);
-    const a    = document.createElement('a');
-    const cd   = res.headers.get('Content-Disposition')||'';
-    const m    = cd.match(/filename="?([^"]+)"?/);
-    a.download = m?m[1]:`Quote_${currentQ}.zip`;
-    a.href=url; a.click(); URL.revokeObjectURL(url);
-    allQuotes[currentQ]._downloaded = true;
-    // Guardar parámetros usados
-    quoteParams[currentQ] = {bp,ingram,extra,useRenew,useOntime,
-      cvrRenew:g.cvrRenew,cvrOntime:g.cvrOntime,
-      cvrRenewIng:g.cvrRenewIng,cvrOntimeIng:g.cvrOntimeIng};
-    status.textContent='✓ Descargado individualmente';
-    updateReviewHint();
-    renderQuoteList();
-  }catch(e){
-    status.textContent='Error: '+e.message;
-  }finally{
-    btn.disabled=false; btn.innerHTML='⬇ Descargar PDF + Excel';
-  }
+    const g=getG();
+    const bp=parseFloat(document.getElementById('e-bp').value)||g.bp;
+    const ingram=parseFloat(document.getElementById('e-ingram').value)||g.ingram;
+    const extra=parseFloat(document.getElementById('e-extra').value)||0;
+    const useRenew=document.getElementById('e-cvr-renew').checked;
+    const useOntime=document.getElementById('e-cvr-ontime').checked;
+    const fd=new FormData();
+    fd.append('file',selectedFile);
+    fd.append('bp_margin',bp);fd.append('ingram_margin',ingram);fd.append('extra_discount',extra);
+    fd.append('cvr_renew_bp',useRenew?g.cvrRenew:0);fd.append('cvr_renew_ingram',useRenew?g.cvrRenewIng:0);
+    fd.append('cvr_ontime_bp',useOntime?g.cvrOntime:0);fd.append('cvr_ontime_ingram',useOntime?g.cvrOntimeIng:0);
+    fd.append('quote_filter',currentQ);
+    const res=await fetch(API+'/renewals/generate-quote',{method:'POST',body:fd});
+    if(!res.ok)throw new Error((await res.json()).error||'Error');
+    const blob=await res.blob();
+    const url=URL.createObjectURL(blob);
+    const a=document.createElement('a');
+    const m=(res.headers.get('Content-Disposition')||'').match(/filename="?([^"]+)"?/);
+    a.download=m?m[1]:`Quote_${currentQ}.zip`;
+    a.href=url;a.click();URL.revokeObjectURL(url);
+    allQuotes[currentQ]._downloaded=true;
+    quoteParams[currentQ]={bp,ingram,extra,useRenew,useOntime,
+      cvrRenew:g.cvrRenew,cvrOntime:g.cvrOntime,cvrRenewIng:g.cvrRenewIng,cvrOntimeIng:g.cvrOntimeIng};
+    status.textContent='✓ Descargado';
+    updateReviewHint();renderList();
+  }catch(e){status.textContent='Error: '+e.message;}
+  finally{btn.disabled=false;btn.innerHTML='⬇ Descargar PDF + Excel';}
 }
-
+ 
 async function downloadPlanilla(){
-  const btn = document.getElementById('btn-planilla');
-  const status = document.getElementById('dl-status');
-  btn.disabled=true; btn.textContent='Generando...';
+  const btn=document.getElementById('btn-planilla');
+  const status=document.getElementById('dl-status');
+  btn.disabled=true;btn.textContent='Generando...';
   try{
-    const fd = new FormData();
-    fd.append('file', selectedFile);
-    fd.append('quote_filter', currentQ);
-    const res = await fetch(API+'/renewals/generate-planilla',{method:'POST',body:fd});
-    if(!res.ok) throw new Error('Error');
-    const blob = await res.blob();
-    const url  = URL.createObjectURL(blob);
-    const a    = document.createElement('a');
-    a.download = `Planilla_IBM_${currentQ}.xlsx`;
-    a.href=url; a.click(); URL.revokeObjectURL(url);
+    const fd=new FormData();fd.append('file',selectedFile);fd.append('quote_filter',currentQ);
+    const res=await fetch(API+'/renewals/generate-planilla',{method:'POST',body:fd});
+    if(!res.ok)throw new Error('Error');
+    const blob=await res.blob();
+    const url=URL.createObjectURL(blob);
+    const a=document.createElement('a');
+    a.download=`Planilla_IBM_${currentQ}.xlsx`;a.href=url;a.click();URL.revokeObjectURL(url);
     status.textContent='✓ Planilla descargada';
-  }catch(e){
-    status.textContent='Error: '+e.message;
-  }finally{
-    btn.disabled=false; btn.innerHTML='⬇ Planilla IBM';
-  }
+  }catch(e){status.textContent='Error: '+e.message;}
+  finally{btn.disabled=false;btn.innerHTML='⬇ Planilla IBM';}
 }
-
+ 
 function toggleAudit(){
-  const panel = document.getElementById('audit-panel');
-  const arrow = document.getElementById('audit-arrow');
-  if(panel.classList.contains('hidden')){
-    panel.classList.remove('hidden');
-    arrow.textContent = '▲ Colapsar';
-    buildAuditTable();
-  } else {
-    panel.classList.add('hidden');
-    arrow.textContent = '▼ Expandir';
-  }
+  const w=document.getElementById('audit-wrap');
+  const open=w.classList.toggle('open');
+  document.getElementById('audit-arr').textContent=open?'▲ Colapsar':'▼ Expandir';
+  if(open)buildAudit();
 }
-
-function buildAuditTable(){
-  const g = getG();
-  const bp     = parseFloat(document.getElementById('e-bp').value)||g.bp;
-  const ingram = parseFloat(document.getElementById('e-ingram').value)||g.ingram;
-  const extra  = parseFloat(document.getElementById('e-extra').value)||0;
-  const useRenew  = document.getElementById('e-cvr-renew').checked;
-  const useOntime = document.getElementById('e-cvr-ontime').checked;
-
-  const XML_FIELDS = [
-    {key:'quote_number',label:'Quote Number'},{key:'part_number',label:'Part Number'},
-    {key:'part_description',label:'Descripción'},{key:'quantity',label:'Qty'},
-    {key:'unit_price',label:'Unit Price (MEP)'},{key:'extended_price',label:'Extended Price'},
-    {key:'currency',label:'Moneda'},{key:'coverage_dates',label:'Coverage Dates'},
-    {key:'renewal_due_date',label:'Renewal Due Date'},
-    {key:'renewal_line_item_start_date',label:'Start Date'},
-    {key:'site',label:'Site (Cliente)'},{key:'ibm_customer_number',label:'ICN'},
-    {key:'reseller',label:'Reseller'},{key:'reseller_authorization',label:'Auth Category'},
-    {key:'customer_set_designation',label:'Customer Set'},
-    {key:'price_level',label:'Price Level'},
-    {key:'eligible_for_government_reseller_program',label:'Gobierno'},
-    {key:'select_territory_accelerator',label:'Select Territory'},
-    {key:'ibm_renewal_contact',label:'IBM Contact'},{key:'site_contact',label:'Site Contact'},
-    {key:'agreement_information',label:'Agreement'},
+ 
+function buildAudit(){
+  const g=getG();
+  const bp=parseFloat(document.getElementById('e-bp').value)||g.bp;
+  const ingram=parseFloat(document.getElementById('e-ingram').value)||g.ingram;
+  const extra=parseFloat(document.getElementById('e-extra').value)||0;
+  const useRenew=document.getElementById('e-cvr-renew').checked;
+  const useOntime=document.getElementById('e-cvr-ontime').checked;
+  const XF=[
+    {k:'quote_number',l:'Quote Number'},{k:'part_number',l:'Part Number'},
+    {k:'part_description',l:'Descripción'},{k:'quantity',l:'Qty'},
+    {k:'unit_price',l:'Unit Price'},{k:'extended_price',l:'Extended Price'},
+    {k:'currency',l:'Moneda'},{k:'coverage_dates',l:'Coverage Dates'},
+    {k:'renewal_due_date',l:'Renewal Due Date'},{k:'site',l:'Site'},
+    {k:'ibm_customer_number',l:'ICN'},{k:'reseller',l:'Reseller'},
+    {k:'agreement_information',l:'Agreement'},
   ];
-  const CALC_FIELDS = [
-    {key:'_bp',label:`Margen BP (${bp}%)`},
-    {key:'_dcto_canal',label:'Dcto Canal $'},
-    {key:'_costo_canal',label:'Costo Canal'},
-    {key:'_cvr_renew',label:`CVR Renew BP (${g.cvrRenew}%)`},
-    {key:'_cvr_ontime',label:`CVR OnTime BP (${g.cvrOntime}%)`},
-    {key:'_extra',label:`Dcto Extra (${extra}%)`},
-    {key:'_final_bp',label:'Precio Final BP'},
-    {key:'_costo_ingram',label:`Costo Ingram (${ingram}%)`},
-    {key:'_ontime',label:'Renueva a tiempo'},
-    {key:'_coverage_ok',label:'Coverage OK'},
+  const CF=[
+    {k:'_bp',l:`Margen BP (${bp}%)`},{k:'_dcto',l:'Dcto Canal $'},
+    {k:'_canal',l:'Costo Canal'},{k:'_rvw',l:`CVR Renew (${g.cvrRenew}%)`},
+    {k:'_ot',l:`CVR OnTime (${g.cvrOntime}%)`},{k:'_final',l:'Precio Final BP'},
+    {k:'_ing',l:`Costo Ingram (${ingram}%)`},{k:'_ontime',l:'Renueva a tiempo'},
+    {k:'_cov',l:'Coverage OK'},
   ];
-
-  const thead = document.getElementById('audit-thead');
+  const thead=document.getElementById('audit-thead');
   thead.innerHTML='';
-  const hrow = document.createElement('tr');
-  hrow.innerHTML = '<th class="audit-th-xml" style="min-width:140px">Campo XML</th>';
-  currentLines.forEach((line,i)=>{
-    hrow.innerHTML += `<th class="audit-th-xml" style="min-width:120px">Línea ${i+1}<br><span style="font-weight:400;font-size:10px">${line.part_number||''}</span></th>`;
-  });
-  thead.appendChild(hrow);
-
-  const tbody = document.getElementById('audit-tbody');
+  const hr=document.createElement('tr');
+  hr.innerHTML='<th class="ath" style="min-width:130px">Campo</th>';
+  currentLines.forEach((l,i)=>hr.innerHTML+=`<th class="ath" style="min-width:100px">L${i+1} · ${l.part_number||''}</th>`);
+  thead.appendChild(hr);
+  const tbody=document.getElementById('audit-tbody');
   tbody.innerHTML='';
-
-  const secXml = document.createElement('tr');
-  secXml.innerHTML=`<td class="audit-section" colspan="${currentLines.length+1}">Datos originales del XML</td>`;
-  tbody.appendChild(secXml);
-
-  XML_FIELDS.forEach(f=>{
+  const s1=document.createElement('tr');
+  s1.innerHTML=`<td class="asec" colspan="${currentLines.length+1}">Datos XML</td>`;
+  tbody.appendChild(s1);
+  XF.forEach(f=>{
     const tr=document.createElement('tr');
-    let row=`<td class="audit-td audit-xml" style="font-weight:500;color:#475569">${f.label}</td>`;
-    currentLines.forEach(line=>{
-      const val=line[f.key]!==undefined?String(line[f.key]):'—';
-      row+=`<td class="audit-td audit-xml">${val||'—'}</td>`;
-    });
-    tr.innerHTML=row; tbody.appendChild(tr);
+    let row=`<td class="atd" style="font-weight:500;color:#475569">${f.l}</td>`;
+    currentLines.forEach(line=>row+=`<td class="atd">${line[f.k]!==undefined?String(line[f.k]):'—'}</td>`);
+    tr.innerHTML=row;tbody.appendChild(tr);
   });
-
-  const secCalc=document.createElement('tr');
-  secCalc.innerHTML=`<td class="audit-section" colspan="${currentLines.length+1}">Cálculos aplicados</td>`;
-  tbody.appendChild(secCalc);
-
+  const s2=document.createElement('tr');
+  s2.innerHTML=`<td class="asec" colspan="${currentLines.length+1}">Cálculos</td>`;
+  tbody.appendChild(s2);
   const calcs=currentLines.map(line=>{
     const c=calcLine(line,bp,g.cvrRenew,g.cvrOntime,extra,useRenew,useOntime);
-    const mep=parseFloat(line.extended_price||0);
-    const hasCovErr=(covAlerts[currentQ]||[]).find(e=>e.part_number===line.part_number);
+    const hce=(covAlerts[currentQ]||[]).find(e=>e.part_number===line.part_number);
     return{
-      _bp:bp+'%',
-      _dcto_canal:'$'+fmt(mep-c.costoCanal),
-      _costo_canal:'$'+fmt(c.costoCanal),
-      _cvr_renew:useRenew?'-$'+fmt(c.rv):'No aplica',
-      _cvr_ontime:useOntime&&line.ontime?'-$'+fmt(c.ot):'No aplica',
-      _extra:extra>0?'-$'+fmt(c.costoCanal*(extra/100)):'No aplica',
-      _final_bp:'$'+fmt(c.finalBP),
-      _costo_ingram:'$'+fmt(c.costoCanal*(1-ingram/100)),
+      _bp:bp+'%',_dcto:'$'+fmt(c.mep-c.cc),_canal:'$'+fmt(c.cc),
+      _rvw:useRenew?'-$'+fmt(c.rv):'No aplica',
+      _ot:useOntime&&line.ontime?'-$'+fmt(c.ot):'No aplica',
+      _final:'$'+fmt(c.finalBP),_ing:'$'+fmt(c.cc*(1-ingram/100)),
       _ontime:line.ontime?'✓ Sí':'✗ No',
-      _coverage_ok:hasCovErr?`⚠ ${hasCovErr.months} mes(es)`:'✓ 12 meses',
+      _cov:hce?`⚠ ${hce.months} mes(es)`:'✓ 12 meses',
     };
   });
-
-  CALC_FIELDS.forEach(f=>{
+  CF.forEach(f=>{
     const tr=document.createElement('tr');
-    let row=`<td class="audit-td audit-calc" style="font-weight:500;color:#0066CC">${f.label}</td>`;
+    let row=`<td class="atd2" style="font-weight:500;color:#0066CC">${f.l}</td>`;
     calcs.forEach(c=>{
-      const val=c[f.key]||'—';
-      const isOk=val.startsWith('✓');
-      const isErr=val.startsWith('⚠')||val.startsWith('✗');
-      const color=isOk?'#166534':isErr?'#991B1B':'#0C447C';
-      row+=`<td class="audit-td audit-calc" style="color:${color}">${val}</td>`;
+      const v=c[f.k]||'—';
+      const col=v.startsWith('✓')?'#166534':v.startsWith('⚠')||v.startsWith('✗')?'#991B1B':'#0C447C';
+      row+=`<td class="atd2" style="color:${col}">${v}</td>`;
     });
-    tr.innerHTML=row; tbody.appendChild(tr);
+    tr.innerHTML=row;tbody.appendChild(tr);
   });
 }
-
-// Cargar tasas vigentes del servidor al iniciar
-async function loadRates(){
-  try{
-    const res = await fetch(API+'/renewals/rates');
-    const r = await res.json();
-    if(!r.success) return;
-    document.getElementById('g-bp').value          = r.bp_margin;
-    document.getElementById('g-ingram').value      = r.ingram_margin;
-    document.getElementById('g-cvr-renew').value   = r.cvr_renew_bp;
-    document.getElementById('g-cvr-renew-ing').value = r.cvr_renew_ingram;
-    document.getElementById('g-cvr-ontime').value  = r.cvr_ontime_bp;
-    document.getElementById('g-cvr-ontime-ing').value = r.cvr_ontime_ingram;
-    // Mostrar banner si estamos en vigencia jul2026
-    if(r.rate_key === 'jul2026'){
-      const banner = document.createElement('div');
-      banner.style.cssText = 'background:#EBF3FF;border:1px solid #93C5FD;border-radius:8px;padding:8px 14px;font-size:12px;color:#1e40af;margin-bottom:12px';
-      banner.innerHTML = '📅 <strong>Tasas vigentes desde 1 Jul 2026:</strong> Margen BP 2% · Ingram 1% · CVR Renew Ingram 1%';
-      document.querySelector('.main').prepend(banner);
-    }
-  }catch(e){ console.warn('No se pudieron cargar tasas:', e); }
-}
-loadRates();
-
+ 
 document.getElementById('xml-file').addEventListener('change',e=>{if(e.target.files[0])handleFile(e.target.files[0]);});
 const dz=document.getElementById('dropzone');
 dz.addEventListener('dragover',e=>{e.preventDefault();dz.classList.add('drag');});
@@ -889,120 +751,13 @@ dz.addEventListener('drop',e=>{e.preventDefault();dz.classList.remove('drag');if
 </script>
 </body>
 </html>'''
-
-
+ 
 def register_ui_route(blueprint):
     from flask import make_response
-
+ 
     @blueprint.get('/ui')
     def renewal_ui():
         response = make_response(PORTAL_HTML)
         response.headers['Content-Type'] = 'text/html; charset=utf-8'
         return response
-
-# ── Nota: agregar al ibm_renewals_blueprint.py ────────────────────────────────
-# Este endpoint debe añadirse en ibm_renewals_blueprint.py
-BULK_ENDPOINT = '''
-import json as _json
-
-@ibm_renewals_bp.post('/generate-bulk')
-def generate_bulk():
-    """
-    Genera un ZIP maestro con todos los quotes chequeados.
-    Estructura: {canal}/{año}/{reseller}/  →  PDF + Excel + Planilla
-    """
-    f, err, code = _get_file_from_request()
-    if err:
-        return err, code
-
-    try:
-        bp_margin         = float(request.form.get('bp_margin', 3))
-        ingram_margin     = float(request.form.get('ingram_margin', 2.1))
-        cvr_renew_bp      = float(request.form.get('cvr_renew_bp', 2))
-        cvr_renew_ingram  = float(request.form.get('cvr_renew_ingram', 2))
-        cvr_ontime_bp     = float(request.form.get('cvr_ontime_bp', 2))
-        cvr_ontime_ingram = float(request.form.get('cvr_ontime_ingram', 1))
-    except (ValueError, TypeError):
-        return jsonify({"success": False, "error": "Márgenes inválidos"}), 400
-
-    # Quotes a incluir
-    try:
-        quote_numbers = _json.loads(request.form.get('quote_numbers', '[]'))
-        quote_params  = _json.loads(request.form.get('quote_params',  '{}'))
-    except Exception:
-        quote_numbers = []
-        quote_params  = {}
-
-    if not quote_numbers:
-        return jsonify({"success": False, "error": "No se enviaron quotes para generar"}), 400
-
-    xml_content = f.read()
-    try:
-        renewals_all = parse_renewal_xml(xml_content)
-    except Exception as e:
-        return jsonify({"success": False, "error": str(e)}), 500
-
-    groups = _group_by_quote(renewals_all)
-
-    timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
-    year      = datetime.now().year
-
-    # ZIP maestro nombrado por fecha
-    zip_name = f'IBM_SS_Renovaciones_{timestamp}_{len(quote_numbers)}quotes.zip'
-    zip_path = os.path.join(OUTPUT_DIR, zip_name)
-
-    with zipfile.ZipFile(zip_path, 'w', zipfile.ZIP_DEFLATED) as zf:
-        for qn in quote_numbers:
-            if qn not in groups:
-                continue
-            lines = groups[qn]
-
-            # Parámetros específicos del quote (si fue ajustado en el editor)
-            p = quote_params.get(qn, {})
-            q_bp          = float(p.get('bp',          bp_margin))
-            q_ingram      = float(p.get('ingram',       ingram_margin))
-            q_cvr_renew   = float(p.get('cvrRenew',     cvr_renew_bp))
-            q_cvr_ontime  = float(p.get('cvrOntime',    cvr_ontime_bp))
-            q_cvr_ri      = float(p.get('cvrRenewIng',  cvr_renew_ingram))
-            q_cvr_oi      = float(p.get('cvrOntimeIng', cvr_ontime_ingram))
-
-            lines = _apply_margins(lines, q_bp, q_ingram,
-                                   q_cvr_renew, q_cvr_ri,
-                                   q_cvr_ontime, q_cvr_oi)
-
-            reseller_name  = _extract_reseller_name(lines[0].get('reseller', ''))
-            customer_short = _extract_customer_short(lines[0].get('site', ''))
-            customer_full  = lines[0].get('site', 'Cliente')
-
-            base_name = f'S&S - {customer_short} - {reseller_name} - {year}'
-
-            # Carpeta: {canal}/{año}/
-            folder = f'{_safe_filename(reseller_name)}/{year}/'
-
-            # PDF
-            pdf_path = os.path.join(OUTPUT_DIR, f'{_safe_filename(base_name)}.pdf')
-            generate_quote_pdf(lines, customer_full,
-                               f'Renovación S&S IBM — {customer_short}',
-                               q_bp, pdf_path,
-                               quote_number=qn,
-                               cvr_renew_bp=q_cvr_renew,
-                               cvr_ontime_bp=q_cvr_ontime)
-            zf.write(pdf_path, folder + os.path.basename(pdf_path))
-
-            # Excel
-            excel_path = os.path.join(OUTPUT_DIR, f'{_safe_filename(base_name)}.xlsx')
-            generate_internal_excel(lines, qn, excel_path)
-            zf.write(excel_path, folder + os.path.basename(excel_path))
-
-            # Planilla (solo si hay errores de coverage)
-            coverage_errors = check_coverage_errors(lines)
-            if coverage_errors:
-                planilla_name = (f'Planilla de renovación SSA y MX - '
-                                 f'{customer_short} - {reseller_name} - 12 Meses - {year}')
-                planilla_path = os.path.join(OUTPUT_DIR, f'{_safe_filename(planilla_name)}.xlsx')
-                generate_planilla(lines, qn, planilla_path)
-                zf.write(planilla_path, folder + os.path.basename(planilla_path))
-
-    return send_file(zip_path, mimetype='application/zip',
-                     as_attachment=True, download_name=zip_name)
-'''
+ 
