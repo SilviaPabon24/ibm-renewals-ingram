@@ -71,7 +71,7 @@ def _parse_cov(cov, part):
         try:
             from datetime import datetime as dt
             d = dt.strptime(raw, '%d %b %Y')
-            return d.strftime('%-d/%m/%Y')
+            return d.strftime('%d/%m/%Y')
         except:
             return raw
     return ''
@@ -307,7 +307,7 @@ def generate_quote_pdf(
     first     = renewals[0] if renewals else {}
     reseller  = _extract_reseller_name(first.get('reseller', ''))
     sbid      = quote_number or first.get('quote_number', '')
-    today     = datetime.now().strftime('%-d/%m/%Y')
+    today     = datetime.now().strftime('%d/%m/%Y')
     valid_dt  = (datetime.now() + timedelta(days=30)).strftime('%d %B de %Y')
 
     doc = SimpleDocTemplate(
