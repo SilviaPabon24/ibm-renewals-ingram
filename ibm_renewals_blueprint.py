@@ -14,6 +14,8 @@ import zipfile
 from datetime import datetime, date
 from collections import defaultdict
 import re
+import base64
+import openpyxl as _openpyxl
 
 from xml_parser import parse_renewal_xml
 from planilla_generator import check_coverage_errors, generate_planilla
@@ -348,5 +350,106 @@ def generate_bulk():
 
         return send_file(zip_path, mimetype='application/zip',
                          as_attachment=True, download_name=zip_name)
+    except Exception as e:
+        return jsonify({"success": False, "error": str(e)}), 500
+    
+# ── AGREGAR ESTE ENDPOINT AL FINAL DE ibm_renewals_blueprint.py ──────────────
+# Requiere: import base64, import openpyxl (agregar al inicio del archivo)
+
+import base64
+import openpyxl as _openpyxl
+
+@ibm_renewals_bp.post('/generate-preview')
+def generate_preview():
+    """
+    Genera PDF + Excel + Planilla para un quote y los devuelve como base64
+    para embeber en la UI sin necesidad de descarga.
+    """
+    f, err, code = _get_file_from_request()
+    if err:
+        return err, code
+
+    try:
+        _r = get_rates()
+        bp_margin        = float(request.form.get('bp_margin',        _r['bp_margin']))
+        ingram_margin    = float(request.form.get('ingram_margin',    _r['ingram_margin']))
+        cvr_renew_bp     = float(request.form.get('cvr_renew_bp',     _r['cvr_renew_bp']))
+        cvr_renew_ingram = float(request.form.get('cvr_renew_ingram', _r['cvr_renew_ingram']))
+        cvr_ontime_bp    = float(request.form.get('cvr_ontime_bp',    _r['cvr_ontime_bp']))
+        cvr_ontime_ingram= float(request.form.get('cvr_ontime_ingram',_r['cvr_ontime_ingram']))
+    except (ValueError, TypeError):
+        return jsonify({"success": False, "error": "Márgenes inválidos"}), 400
+
+    quote_filter = request.form.get('quote_filter', '').strip() or None
+
+    try:
+        renewals = parse_renewal_xml(f.read())
+        if not renewals:
+            return jsonify({"success": False, "error": "No se encontraron líneas"}), 400
+
+        renewals = _apply_margins(renewals, bp_margin, ingram_margin,
+                                  cvr_renew_bp, cvr_renew_ingram,
+                                  cvr_ontime_bp, cvr_ontime_ingram)
+        groups = _group_by_quote(renewals)
+
+        if quote_filter and quote_filter in groups:
+            lines = groups[quote_filter]
+        else:
+            return jsonify({"success": False, "error": "Quote no encontrado"}), 404
+
+        year          = datetime.now().year
+        reseller_name = _extract_reseller_name(lines[0].get('reseller', ''))
+        customer_short= _extract_customer_short(lines[0].get('site', ''))
+        customer_full = lines[0].get('site', 'Cliente')
+        base_name     = f"S&S - {customer_short} - {reseller_name} - {year}"
+        result        = {}
+
+        # PDF
+        pdf_path = os.path.join(OUTPUT_DIR, f"preview_{_safe_filename(quote_filter)}.pdf")
+        generate_quote_pdf(lines, customer_full,
+                           f"Renovación S&S IBM — {customer_short}",
+                           bp_margin, pdf_path,
+                           quote_number=quote_filter,
+                           cvr_renew_bp=cvr_renew_bp,
+                           cvr_ontime_bp=cvr_ontime_bp)
+        with open(pdf_path, 'rb') as fp:
+            result['pdf_b64'] = base64.b64encode(fp.read()).decode('utf-8')
+        result['pdf_filename'] = f"{_safe_filename(base_name)}.pdf"
+
+        # Excel — leer hojas como JSON
+        excel_path = os.path.join(OUTPUT_DIR, f"preview_{_safe_filename(quote_filter)}.xlsx")
+        generate_internal_excel(lines, quote_filter, excel_path)
+        wb = _openpyxl.load_workbook(excel_path, data_only=True)
+        sheets = {}
+        for sn in wb.sheetnames:
+            ws = wb[sn]
+            rows = []
+            for row in ws.iter_rows(min_row=1, max_row=min(ws.max_row, 60), values_only=True):
+                rows.append([str(c) if c is not None else '' for c in row])
+            sheets[sn] = rows
+        result['excel_sheets']   = sheets
+        result['excel_filename'] = f"{_safe_filename(base_name)}.xlsx"
+
+        # Planilla (solo si hay coverage incorrecto)
+        coverage_errors = check_coverage_errors(lines)
+        if coverage_errors:
+            planilla_name = (f"Planilla de renovación SSA y MX - "
+                             f"{customer_short} - {reseller_name} - 12 Meses - {year}")
+            planilla_path = os.path.join(OUTPUT_DIR, f"preview_planilla_{_safe_filename(quote_filter)}.xlsx")
+            generate_planilla(lines, quote_filter, planilla_path)
+            wb2 = _openpyxl.load_workbook(planilla_path, data_only=True)
+            sheets2 = {}
+            for sn in wb2.sheetnames:
+                ws2 = wb2[sn]
+                rows2 = []
+                for row in ws2.iter_rows(min_row=1, max_row=min(ws2.max_row, 60), values_only=True):
+                    rows2.append([str(c) if c is not None else '' for c in row])
+                sheets2[sn] = rows2
+            result['planilla_sheets']   = sheets2
+            result['planilla_filename'] = f"{_safe_filename(planilla_name)}.xlsx"
+
+        result['success'] = True
+        return jsonify(result)
+
     except Exception as e:
         return jsonify({"success": False, "error": str(e)}), 500

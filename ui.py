@@ -1,6 +1,7 @@
 """
 Portal de Renovaciones IBM S&S — Ingram Micro
-Layout master-detail con fix de cambio de quote y overview de archivos
+Layout master-detail con preview real de archivos (opción 1)
+Al abrir un quote, el servidor pre-genera PDF + Excel y los embebe en el panel
 """
 
 PORTAL_HTML = r'''<!DOCTYPE html>
@@ -67,6 +68,7 @@ body{font-family:'Segoe UI',system-ui,sans-serif;background:#F0F4F8;color:#1A2B3
 .qtag-ok{background:#DCFCE7;color:#166534}
 .qtag-warn{background:#FEF3C7;color:#92400E}
 .qtag-gray{background:#F1F5F9;color:#64748B}
+.qtag-load{background:#EBF3FF;color:#0066CC}
 .bulk-footer{border-top:0.5px solid #E2E8F0;padding:10px 12px;background:#F0FDF4;flex-shrink:0}
 .bulk-footer.hidden{display:none!important}
 .bf-row{display:flex;align-items:center;justify-content:space-between;gap:8px}
@@ -96,23 +98,40 @@ body{font-family:'Segoe UI',system-ui,sans-serif;background:#F0F4F8;color:#1A2B3
 .cl{display:flex;align-items:center;gap:7px;padding:7px 11px;border-radius:7px;font-size:12px}
 .cl-ok{background:#F0FDF4;border:0.5px solid #BBF7D0;color:#166534}
 .cl-warn{background:#FFFBEB;border:0.5px solid #FCD34D;color:#92400E}
-.tbl-wrap{overflow-x:auto;margin-bottom:10px}
-table{width:100%;border-collapse:collapse;font-size:12px}
-th{background:#0F2B5B;color:#fff;padding:7px 10px;text-align:left;font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:0.3px}
-td{padding:7px 10px;border-bottom:0.5px solid #F1F5F9;vertical-align:middle}
-tr:nth-child(even) td{background:#F8FAFC}
-.tot-row td{background:#EBF3FF!important;font-weight:700;color:#0C447C}
-/* File overview */
-.files-overview{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:10px}
-.fov{border:0.5px solid #E2E8F0;border-radius:8px;padding:10px 12px;display:flex;align-items:center;gap:10px}
-.fov.active{border-color:#BBF7D0;background:#F0FDF4}
-.fov.warn{border-color:#FCD34D;background:#FFFBEB}
-.fov.inactive{opacity:0.45}
-.fov-icon{font-size:22px;flex-shrink:0}
-.fov-name{font-size:12px;font-weight:600;color:#0F2B5B}
-.fov-desc{font-size:10px;color:#64748B;margin-top:2px}
-.fov.active .fov-name{color:#166534}
-.fov.warn .fov-name{color:#92400E}
+/* File preview tabs */
+.file-tabs{display:flex;border-bottom:0.5px solid #E2E8F0;margin-bottom:12px}
+.file-tab{padding:8px 14px;font-size:12px;font-weight:600;cursor:pointer;color:#64748B;border-bottom:2px solid transparent;transition:all 0.15s;display:flex;align-items:center;gap:5px}
+.file-tab.active{color:#0066CC;border-bottom-color:#0066CC}
+.file-tab.warn-tab{color:#92400E}
+.file-tab.warn-tab.active{color:#92400E;border-bottom-color:#F59E0B}
+.file-tab.disabled{opacity:0.35;cursor:not-allowed}
+/* Loading state */
+.preview-loading{display:flex;flex-direction:column;align-items:center;justify-content:center;padding:3rem;gap:12px;color:#64748B}
+.big-spin{width:32px;height:32px;border:3px solid #E2E8F0;border-top-color:#0066CC;border-radius:50%;animation:sp 0.8s linear infinite}
+@keyframes sp{to{transform:rotate(360deg)}}
+/* PDF iframe */
+.pdf-frame-wrap{border:0.5px solid #E2E8F0;border-radius:8px;overflow:hidden}
+.pdf-frame-wrap iframe{width:100%;height:500px;border:none;display:block}
+/* Excel preview */
+.xl-wrap{border:0.5px solid #E2E8F0;border-radius:8px;overflow:hidden}
+.xl-bar{background:#217346;padding:6px 12px;font-size:11px;font-weight:600;color:#fff}
+.xl-sheet-tabs{display:flex;background:#1a5c38}
+.xl-stab{padding:5px 14px;font-size:10px;color:rgba(255,255,255,0.65);cursor:pointer;border-right:0.5px solid rgba(255,255,255,0.1);transition:all 0.1s}
+.xl-stab.on{background:#fff;color:#217346;font-weight:700}
+.xl-body{overflow-x:auto;max-height:400px;overflow-y:auto}
+.xl-tbl{width:100%;border-collapse:collapse;font-size:11px}
+.xl-tbl th{background:#D9E1F2;color:#1A2B3C;padding:5px 10px;text-align:left;border:0.5px solid #BDD7EE;font-weight:600;white-space:nowrap}
+.xl-tbl td{padding:4px 10px;border:0.5px solid #E2E8F0;white-space:nowrap}
+.xl-tbl .hl{background:#FFF9C4}
+.xl-tbl .num{text-align:right;font-family:monospace}
+.xl-tbl .tot{background:#D9E1F2;font-weight:600}
+.xl-tbl tr:nth-child(even) td{background:#F8FAFC}
+/* Tbl */
+table.dtbl{width:100%;border-collapse:collapse;font-size:12px}
+table.dtbl th{background:#0F2B5B;color:#fff;padding:7px 10px;text-align:left;font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:0.3px}
+table.dtbl td{padding:7px 10px;border-bottom:0.5px solid #F1F5F9;vertical-align:middle}
+table.dtbl tr:nth-child(even) td{background:#F8FAFC}
+table.dtbl .tot-row td{background:#EBF3FF!important;font-weight:700;color:#0C447C}
 .btn{display:inline-flex;align-items:center;gap:6px;height:34px;padding:0 14px;border-radius:8px;border:none;cursor:pointer;font-size:12px;font-weight:600;transition:all 0.15s}
 .btn:active{transform:scale(0.97)}
 .btn-p{background:#0066CC;color:#fff}.btn-p:hover{background:#0052A3}
@@ -136,12 +155,9 @@ tr:nth-child(even) td{background:#F8FAFC}
 .atd{padding:5px 8px;border-bottom:0.5px solid #E2E8F0;font-size:11px;white-space:nowrap;background:#F8FAFC}
 .atd2{padding:5px 8px;border-bottom:0.5px solid #E2E8F0;font-size:11px;white-space:nowrap;background:#EBF3FF}
 .asec{background:#1E293B;color:#fff;padding:5px 10px;font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:0.5px}
-.alert{border-radius:8px;padding:10px 14px;font-size:12px;margin-top:8px}
-.a-ok{background:#F0FDF4;color:#166534;border:1px solid #BBF7D0}
-.a-warn{background:#FFFBEB;color:#92400E;border:1px solid #FCD34D}
-.a-err{background:#FEF2F2;color:#991B1B;border:1px solid #FECACA}
+.a-ok{background:#F0FDF4;color:#166534;border:1px solid #BBF7D0;border-radius:8px;padding:10px 14px;font-size:12px;margin-top:8px}
+.a-err{background:#FEF2F2;color:#991B1B;border:1px solid #FECACA;border-radius:8px;padding:10px 14px;font-size:12px;margin-top:8px}
 .spin{width:13px;height:13px;border:2px solid rgba(255,255,255,0.3);border-top-color:#fff;border-radius:50%;animation:sp 0.7s linear infinite;display:inline-block}
-@keyframes sp{to{transform:rotate(360deg)}}
 .hidden{display:none!important}
 </style>
 </head>
@@ -220,7 +236,7 @@ tr:nth-child(even) td{background:#F8FAFC}
     <div class="detail-empty" id="detail-empty">
       <div style="font-size:36px">📋</div>
       <div style="font-size:14px;font-weight:600;color:#64748B">Selecciona un quote</div>
-      <div style="font-size:12px;color:#94A3B8">Haz clic en cualquier quote de la lista para ver su detalle</div>
+      <div style="font-size:12px;color:#94A3B8">Haz clic en cualquier quote de la lista</div>
     </div>
 
     <div id="detail-content" class="hidden">
@@ -232,7 +248,7 @@ tr:nth-child(even) td{background:#F8FAFC}
 
       <div class="dcard">
         <div class="dp-head">
-          <span>Parámetros de este quote</span>
+          <span>Parámetros</span>
           <span id="rates-badge" style="font-size:10px;color:#0066CC;font-weight:500"></span>
         </div>
         <div class="dp-grid">
@@ -240,12 +256,12 @@ tr:nth-child(even) td{background:#F8FAFC}
           <div class="dpf"><label>Margen Ingram</label><div class="sw"><input type="number" id="e-ingram" step="0.1"><span class="sfx">%</span></div></div>
           <div class="dpf"><label>Dcto adicional</label><div class="sw"><input type="number" id="e-extra" value="0" step="0.1"><span class="sfx">%</span></div></div>
         </div>
-        <div class="toggles">
+        <div class="toggles" style="margin-bottom:10px">
           <label class="toggle"><input type="checkbox" id="e-cvr-renew" checked onchange="recalc()"> CVR Renew BP (<span id="e-crp">2</span>%)</label>
           <label class="toggle" id="lbl-ontime"><input type="checkbox" id="e-cvr-ontime" onchange="recalc()"> <span id="ontime-txt">CVR OnTime BP (<span id="e-cop">2</span>%)</span></label>
         </div>
-        <div style="margin-top:10px">
-          <button class="btn btn-g btn-sm" onclick="recalc()">↻ Recalcular</button>
+        <div class="btn-grp">
+          <button class="btn btn-g btn-sm" onclick="recalcAndPreview()">↻ Recalcular y actualizar preview</button>
         </div>
       </div>
 
@@ -256,27 +272,54 @@ tr:nth-child(even) td{background:#F8FAFC}
         <div class="cov-lines" id="d-cov"></div>
       </div>
 
+      <!-- FILE PREVIEW -->
       <div class="dcard">
-        <div style="font-size:11px;font-weight:600;color:#64748B;text-transform:uppercase;letter-spacing:0.3px;margin-bottom:8px">Detalle de líneas</div>
-        <div class="tbl-wrap">
-          <table>
-            <thead><tr>
-              <th>Part number</th><th>Descripción</th><th>Cobertura</th>
-              <th style="text-align:right">Qty</th><th style="text-align:right">MEP</th>
-              <th style="text-align:right">Dcto canal</th><th style="text-align:right">CVR Renew</th>
-              <th style="text-align:right">CVR OnTime</th><th style="text-align:right">Precio BP</th>
-            </tr></thead>
-            <tbody id="d-tbody"></tbody>
-          </table>
+        <div class="file-tabs" id="file-tabs">
+          <div class="file-tab active" onclick="showFileTab(0)" id="ftab-0">📄 Cotización PDF</div>
+          <div class="file-tab" onclick="showFileTab(1)" id="ftab-1">📊 Excel interno</div>
+          <div class="file-tab hidden" onclick="showFileTab(2)" id="ftab-2">⚠ Planilla IBM</div>
         </div>
-      </div>
 
-      <div class="dcard">
-        <div style="font-size:11px;font-weight:600;color:#64748B;text-transform:uppercase;letter-spacing:0.3px;margin-bottom:8px">Archivos que se generarán</div>
-        <div class="files-overview" id="files-overview"></div>
-        <div class="btn-grp" style="margin-top:4px">
-          <button class="btn btn-p" id="btn-dl" onclick="downloadQuote()">⬇ Descargar PDF + Excel</button>
-          <button class="btn btn-a hidden" id="btn-planilla" onclick="downloadPlanilla()">⬇ Planilla IBM</button>
+        <!-- PDF panel -->
+        <div id="fpanel-0">
+          <div class="preview-loading" id="pdf-loading">
+            <div class="big-spin"></div>
+            <div style="font-size:13px;font-weight:600">Generando PDF...</div>
+            <div style="font-size:11px;color:#94A3B8">Esto toma ~2 segundos</div>
+          </div>
+          <div class="pdf-frame-wrap hidden" id="pdf-frame-wrap">
+            <iframe id="pdf-frame" title="Preview cotización PDF"></iframe>
+          </div>
+        </div>
+
+        <!-- Excel panel -->
+        <div id="fpanel-1" class="hidden">
+          <div class="preview-loading" id="xl-loading">
+            <div class="big-spin"></div>
+            <div style="font-size:13px;font-weight:600">Generando Excel...</div>
+            <div style="font-size:11px;color:#94A3B8">Esto toma ~1 segundo</div>
+          </div>
+          <div class="xl-wrap hidden" id="xl-wrap">
+            <div class="xl-bar" id="xl-filename">Excel interno</div>
+            <div class="xl-sheet-tabs" id="xl-sheet-tabs"></div>
+            <div class="xl-body"><table class="xl-tbl" id="xl-tbl"></table></div>
+          </div>
+        </div>
+
+        <!-- Planilla panel -->
+        <div id="fpanel-2" class="hidden">
+          <div class="preview-loading" id="pl-loading">
+            <div class="big-spin"></div>
+            <div style="font-size:13px;font-weight:600">Generando Planilla IBM...</div>
+          </div>
+          <div class="xl-wrap hidden" id="pl-wrap">
+            <div class="xl-bar">Planilla de corrección IBM</div>
+            <div class="xl-body"><table class="xl-tbl" id="pl-tbl"></table></div>
+          </div>
+        </div>
+
+        <div class="btn-grp" style="margin-top:12px">
+          <button class="btn btn-p" id="btn-dl" onclick="downloadQuote()">⬇ Descargar ZIP</button>
           <span id="dl-status" style="font-size:12px;color:#64748B"></span>
         </div>
         <div class="review-box">
@@ -308,7 +351,9 @@ tr:nth-child(even) td{background:#F8FAFC}
 <script>
 const API=window.location.origin;
 let allQuotes={},covAlerts={},currentQ=null,currentLines=[],selectedFile=null,quoteParams={};
+let previewCache={};
 const fmt=n=>Number(n).toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2});
+let activeFileTab=0;
 
 async function loadRates(){
   try{
@@ -343,8 +388,7 @@ function updatePills(){
   document.getElementById('params-pills').innerHTML=
     `<span class="pill">BP <strong>${g.bp}%</strong></span>`+
     `<span class="pill">Ingram <strong>${g.ingram}%</strong></span>`+
-    `<span class="pill">CVR Renew <strong>${g.cvrRenew}%</strong></span>`+
-    `<span class="pill">OnTime <strong>${g.cvrOntime}%</strong></span>`;
+    `<span class="pill">CVR <strong>${g.cvrRenew}%</strong></span>`;
 }
 
 function toggleParams(){
@@ -356,7 +400,7 @@ function toggleParams(){
 function applyParams(){
   updatePills();
   toggleParams();
-  if(currentQ)openEditor(currentQ);
+  if(currentQ){ previewCache={}; loadPreviews(); }
 }
 
 function setStep(n){
@@ -366,7 +410,6 @@ function setStep(n){
   }
 }
 
-// ── SAVE PARAMS del quote actual antes de cambiar ─────────────────────────
 function saveCurrentParams(){
   if(!currentQ)return;
   const g=getG();
@@ -385,7 +428,7 @@ async function handleFile(file){
   if(!file||!file.name.endsWith('.xml'))return;
   selectedFile=file;
   const st=document.getElementById('upload-status');
-  st.className='alert a-ok';st.textContent='Procesando...';st.classList.remove('hidden');
+  st.className='a-ok';st.textContent='Procesando...';st.classList.remove('hidden');
   const fd=new FormData();fd.append('file',file);
   try{
     const res=await fetch(API+'/renewals/parse-renewal-report',{method:'POST',body:fd});
@@ -396,11 +439,9 @@ async function handleFile(file){
     Object.keys(allQuotes).forEach(qn=>{allQuotes[qn]._checked=false;allQuotes[qn]._downloaded=false;});
     document.getElementById('upload-screen').classList.add('hidden');
     document.getElementById('main-layout').classList.remove('hidden');
-    updatePills();
-    renderList();
-    setStep(2);
+    updatePills();renderList();setStep(2);
   }catch(e){
-    st.className='alert a-err';st.textContent='Error: '+e.message;
+    st.className='a-err';st.textContent='Error: '+e.message;
   }
 }
 
@@ -411,7 +452,6 @@ function renderList(){
   document.getElementById('sb-meta').textContent=
     checked>0?`${checked} listo(s) · ${total-checked} pendiente(s)`:'Selecciona uno para ver el detalle';
   if(checked===total&&total>0)setStep(3);
-
   const bf=document.getElementById('bulk-footer');
   if(checked>0){
     bf.classList.remove('hidden');
@@ -424,13 +464,13 @@ function renderList(){
     });
     document.getElementById('bf-sub').textContent=Object.keys(canales).join(', ');
   }else bf.classList.add('hidden');
-
   const container=document.getElementById('q-list');
   container.innerHTML='';
   Object.entries(allQuotes).forEach(([qn,qdata])=>{
     const hasWarn=!!covAlerts[qn];
     const isReady=!!qdata._checked;
     const isSel=currentQ===qn;
+    const isLoading=!!qdata._loading;
     const customer=(qdata.customer||'').replace(/^\d+-/,'').replace(/,.*$/,'').trim();
     const reseller=(qdata.lines&&qdata.lines[0]&&qdata.lines[0].reseller||'').replace(/^\d+\s*/,'').trim();
     const div=document.createElement('div');
@@ -444,7 +484,7 @@ function renderList(){
       </div>
       <div class="qi-right" onclick="openEditor('${qn}')">
         <div class="qi-amt">$${fmt(qdata.total_ibm)}</div>
-        ${hasWarn?'<span class="qtag qtag-warn">⚠ Coverage</span>':isReady?'<span class="qtag qtag-ok">✓ Listo</span>':'<span class="qtag qtag-gray">Pendiente</span>'}
+        ${isLoading?'<span class="qtag qtag-load">⟳ Generando</span>':hasWarn?'<span class="qtag qtag-warn">⚠ Coverage</span>':isReady?'<span class="qtag qtag-ok">✓ Listo</span>':'<span class="qtag qtag-gray">Pendiente</span>'}
       </div>`;
     container.appendChild(div);
   });
@@ -452,20 +492,13 @@ function renderList(){
 
 function toggleCheck(qn){
   allQuotes[qn]._checked=!allQuotes[qn]._checked;
-  if(currentQ===qn){
-    document.getElementById('review-chk').checked=allQuotes[qn]._checked;
-    updateReviewHint();
-  }
+  if(currentQ===qn){document.getElementById('review-chk').checked=allQuotes[qn]._checked;updateReviewHint();}
   renderList();
 }
-
 function toggleReview(checked){
   if(!currentQ)return;
-  allQuotes[currentQ]._checked=checked;
-  updateReviewHint();
-  renderList();
+  allQuotes[currentQ]._checked=checked;updateReviewHint();renderList();
 }
-
 function updateReviewHint(){
   if(!currentQ)return;
   const hint=document.getElementById('review-hint');
@@ -474,40 +507,15 @@ function updateReviewHint(){
   hint.style.color=ok?'#16A34A':'#94A3B8';
 }
 
-// ── FILES OVERVIEW ────────────────────────────────────────────────────────────
-function renderFilesOverview(qn, customer, reseller){
-  const year=new Date().getFullYear();
-  const hasWarn=!!(covAlerts[qn]&&covAlerts[qn].length>0);
-  const base=`S&S - ${customer} - ${reseller} - ${year}`;
-  const files=[
-    {icon:'📄',name:'Cotización PDF',desc:base+'.pdf',cls:'active'},
-    {icon:'📊',name:'Excel interno',desc:base+'.xlsx',cls:'active'},
-    {icon:'📋',name:'Planilla IBM',desc:hasWarn?'Requerida — coverage incorrecto':'No aplica para este quote',cls:hasWarn?'warn':'inactive'},
-  ];
-  document.getElementById('files-overview').innerHTML=files.map(f=>`
-    <div class="fov ${f.cls}">
-      <div class="fov-icon">${f.icon}</div>
-      <div>
-        <div class="fov-name">${f.name}</div>
-        <div class="fov-desc">${f.desc}</div>
-      </div>
-    </div>`).join('');
-}
-
-// ── OPEN EDITOR ── FIX: guardar params del anterior antes de cargar nuevo ──
 function openEditor(qn){
-  // Guardar params del quote anterior antes de cambiar
   saveCurrentParams();
-
   currentQ=qn;
   const qdata=allQuotes[qn];
   currentLines=(qdata.lines||[]).map(l=>({...l,ontime:qdata.ontime||false}));
   const customer=(qdata.customer||'').replace(/^\d+-/,'').replace(/,.*$/,'').trim();
   const reseller=(currentLines[0]?.reseller||'').replace(/^\d+\s*/,'').trim();
-
   document.getElementById('d-title').textContent='Quote '+qn+' — '+customer;
   document.getElementById('d-sub').textContent=reseller+(currentLines[0]?.coverage_dates?' · '+currentLines[0].coverage_dates:'');
-
   const g=getG();
   const p=quoteParams[qn]||{};
   document.getElementById('e-bp').value=p.bp!==undefined?p.bp:g.bp;
@@ -516,46 +524,183 @@ function openEditor(qn){
   document.getElementById('e-cvr-renew').checked=p.useRenew!==undefined?p.useRenew:true;
   document.getElementById('e-crp').textContent=g.cvrRenew;
   document.getElementById('e-cop').textContent=g.cvrOntime;
-
-  // OnTime: habilitar solo si no venció
   const isOntime=!!(currentLines[0]&&currentLines[0].ontime);
   const oc=document.getElementById('e-cvr-ontime');
   const ol=document.getElementById('lbl-ontime');
   if(!isOntime){
-    oc.checked=false;oc.disabled=true;
-    ol.style.opacity='0.4';ol.style.cursor='not-allowed';ol.title='Fecha vencida — incentivo no aplica';
+    oc.checked=false;oc.disabled=true;ol.style.opacity='0.4';ol.style.cursor='not-allowed';
     document.getElementById('ontime-txt').innerHTML=`CVR OnTime BP (<span id="e-cop">${g.cvrOntime}</span>%) — vencido`;
   }else{
     oc.checked=p.useOntime!==undefined?p.useOntime:true;
-    oc.disabled=false;ol.style.opacity='1';ol.style.cursor='pointer';ol.title='';
+    oc.disabled=false;ol.style.opacity='1';ol.style.cursor='pointer';
     document.getElementById('ontime-txt').innerHTML=`CVR OnTime BP (<span id="e-cop">${g.cvrOntime}</span>%)`;
   }
-
-  // Coverage
   const errLines=covAlerts[qn]||[];
-  document.getElementById('btn-planilla').classList.toggle('hidden',errLines.length===0);
+  const hasWarn=errLines.length>0;
+  const ft2=document.getElementById('ftab-2');
+  const fp2=document.getElementById('fpanel-2');
+  if(hasWarn){ft2.classList.remove('hidden');ft2.classList.add('warn-tab');}
+  else{ft2.classList.add('hidden');}
   document.getElementById('d-cov').innerHTML=currentLines.map(line=>{
     const err=errLines.find(e=>e.part_number===line.part_number);
     return err
       ?`<div class="cl cl-warn">⚠ <strong>${err.part_number}</strong> — Coverage incorrecto: ${err.months} mes(es) · Corregir hasta ${err.correct_end}</div>`
       :`<div class="cl cl-ok">✓ <strong>${line.part_number}</strong> — Coverage correcto: 12 meses</div>`;
   }).join('');
-
-  // Files overview
-  renderFilesOverview(qn, customer, reseller);
-
   document.getElementById('review-chk').checked=!!allQuotes[qn]._checked;
   updateReviewHint();
   recalc();
   document.getElementById('detail-empty').classList.add('hidden');
   document.getElementById('detail-content').classList.remove('hidden');
   document.getElementById('detail').scrollTo({top:0,behavior:'smooth'});
-
-  // Cerrar audit si estaba abierto
   document.getElementById('audit-wrap').classList.remove('open');
   document.getElementById('audit-arr').textContent='▼ Expandir';
-
+  showFileTab(0);
+  loadPreviews();
   renderList();
+}
+
+// ── LOAD PREVIEWS ─────────────────────────────────────────────────────────────
+async function loadPreviews(){
+  if(!currentQ||!selectedFile)return;
+  const g=getG();
+  const bp=parseFloat(document.getElementById('e-bp').value)||g.bp;
+  const ingram=parseFloat(document.getElementById('e-ingram').value)||g.ingram;
+  const extra=parseFloat(document.getElementById('e-extra').value)||0;
+  const useRenew=document.getElementById('e-cvr-renew').checked;
+  const useOntime=document.getElementById('e-cvr-ontime').checked;
+  const cacheKey=`${currentQ}_${bp}_${ingram}_${extra}_${useRenew}_${useOntime}`;
+  if(previewCache[cacheKey]){
+    applyPreviewCache(previewCache[cacheKey]);
+    return;
+  }
+  // Show loading
+  resetPreviews();
+  allQuotes[currentQ]._loading=true;
+  renderList();
+  const fd=new FormData();
+  fd.append('file',selectedFile);
+  fd.append('bp_margin',bp);fd.append('ingram_margin',ingram);fd.append('extra_discount',extra);
+  fd.append('cvr_renew_bp',useRenew?g.cvrRenew:0);fd.append('cvr_renew_ingram',useRenew?g.cvrRenewIng:0);
+  fd.append('cvr_ontime_bp',useOntime?g.cvrOntime:0);fd.append('cvr_ontime_ingram',useOntime?g.cvrOntimeIng:0);
+  fd.append('quote_filter',currentQ);
+  fd.append('preview_mode','1');
+  try{
+    const res=await fetch(API+'/renewals/generate-preview',{method:'POST',body:fd});
+    if(!res.ok)throw new Error('Error al generar preview');
+    const data=await res.json();
+    previewCache[cacheKey]=data;
+    applyPreviewCache(data);
+  }catch(e){
+    document.getElementById('pdf-loading').innerHTML=`<div style="color:#991B1B;font-size:12px">Error al cargar preview: ${e.message}</div>`;
+  }finally{
+    allQuotes[currentQ]._loading=false;
+    renderList();
+  }
+}
+
+function resetPreviews(){
+  document.getElementById('pdf-loading').innerHTML='<div class="big-spin"></div><div style="font-size:13px;font-weight:600">Generando PDF...</div><div style="font-size:11px;color:#94A3B8">Esto toma ~2 segundos</div>';
+  document.getElementById('pdf-loading').classList.remove('hidden');
+  document.getElementById('pdf-frame-wrap').classList.add('hidden');
+  document.getElementById('xl-loading').classList.remove('hidden');
+  document.getElementById('xl-wrap').classList.add('hidden');
+  document.getElementById('pl-loading').classList.remove('hidden');
+  document.getElementById('pl-wrap').classList.add('hidden');
+}
+
+function applyPreviewCache(data){
+  // PDF
+  if(data.pdf_b64){
+    const iframe=document.getElementById('pdf-frame');
+    iframe.src='data:application/pdf;base64,'+data.pdf_b64;
+    document.getElementById('pdf-loading').classList.add('hidden');
+    document.getElementById('pdf-frame-wrap').classList.remove('hidden');
+  }
+  // Excel
+  if(data.excel_sheets){
+    renderExcelPreview(data.excel_sheets,'xl-tbl','xl-sheet-tabs','xl-filename',data.excel_filename);
+    document.getElementById('xl-loading').classList.add('hidden');
+    document.getElementById('xl-wrap').classList.remove('hidden');
+  }
+  // Planilla
+  if(data.planilla_sheets){
+    renderExcelPreview(data.planilla_sheets,'pl-tbl',null,null,null);
+    document.getElementById('pl-loading').classList.add('hidden');
+    document.getElementById('pl-wrap').classList.remove('hidden');
+  }else{
+    document.getElementById('pl-loading').innerHTML='<div style="color:#64748B;font-size:12px">No aplica para este quote — no hay errores de coverage</div>';
+  }
+}
+
+function renderExcelPreview(sheets,tblId,tabsId,filenameId,filename){
+  if(filenameId&&filename)document.getElementById(filenameId).textContent=filename;
+  const sheetNames=Object.keys(sheets);
+  if(tabsId){
+    const tabsEl=document.getElementById(tabsId);
+    tabsEl.innerHTML='';
+    sheetNames.forEach((name,i)=>{
+      const d=document.createElement('div');
+      d.className='xl-stab'+(i===0?' on':'');
+      d.textContent=name;
+      d.onclick=()=>{
+        tabsEl.querySelectorAll('.xl-stab').forEach((t,j)=>t.classList.toggle('on',j===i));
+        buildXlTable(sheets[name],tblId);
+      };
+      tabsEl.appendChild(d);
+    });
+  }
+  if(sheetNames.length>0)buildXlTable(sheets[sheetNames[0]],tblId);
+}
+
+function buildXlTable(sheetData,tblId){
+  const tbl=document.getElementById(tblId);
+  tbl.innerHTML='';
+  if(!sheetData||!sheetData.length)return;
+  const thead=document.createElement('thead');
+  const hrow=document.createElement('tr');
+  sheetData[0].forEach(cell=>{
+    const th=document.createElement('th');
+    th.textContent=cell||'';
+    hrow.appendChild(th);
+  });
+  thead.appendChild(hrow);
+  tbl.appendChild(thead);
+  const tbody=document.createElement('tbody');
+  sheetData.slice(1).forEach(row=>{
+    const tr=document.createElement('tr');
+    row.forEach(cell=>{
+      const td=document.createElement('td');
+      td.textContent=cell!==null&&cell!==undefined?String(cell):'';
+      if(typeof cell==='number')td.className='num';
+      tbody.appendChild(td);tr.appendChild(td);
+    });
+    tbody.appendChild(tr);
+  });
+  tbl.appendChild(tbody);
+}
+
+function recalcAndPreview(){
+  recalc();
+  previewCache={};
+  loadPreviews();
+}
+
+function recalc(){
+  const g=getG();
+  const bp=parseFloat(document.getElementById('e-bp').value)||g.bp;
+  const extra=parseFloat(document.getElementById('e-extra').value)||0;
+  const useRenew=document.getElementById('e-cvr-renew').checked;
+  const useOntime=document.getElementById('e-cvr-ontime').checked;
+  let tM=0,tC=0,tRv=0,tOt=0,tF=0;
+  currentLines.forEach(line=>{
+    const c=calcLine(line,bp,g.cvrRenew,g.cvrOntime,extra,useRenew,useOntime);
+    tM+=c.mep;tC+=c.cc;tRv+=c.rv;tOt+=c.ot;tF+=c.finalBP;
+  });
+  document.getElementById('d-scards').innerHTML=`
+    <div class="sc"><div class="sc-lbl">Precio MEP total</div><div class="sc-val">$${fmt(tM)}</div></div>
+    <div class="sc"><div class="sc-lbl">Nota de descuento</div><div class="sc-val g">$${fmt(tM-tF)}</div></div>
+    <div class="sc"><div class="sc-lbl">Precio final canal</div><div class="sc-val b">$${fmt(tF)}</div></div>`;
 }
 
 function calcLine(line,bp,cvrRenew,cvrOntime,extra,useRenew,useOntime){
@@ -567,45 +712,14 @@ function calcLine(line,bp,cvrRenew,cvrOntime,extra,useRenew,useOntime){
   return{mep,cc,rv,ot,finalBP:+(cc-rv-ot-ex).toFixed(2)};
 }
 
-function recalc(){
-  const g=getG();
-  const bp=parseFloat(document.getElementById('e-bp').value)||g.bp;
-  const extra=parseFloat(document.getElementById('e-extra').value)||0;
-  const useRenew=document.getElementById('e-cvr-renew').checked;
-  const useOntime=document.getElementById('e-cvr-ontime').checked;
-  let tM=0,tC=0,tRv=0,tOt=0,tF=0;
-  const tbody=document.getElementById('d-tbody');
-  tbody.innerHTML='';
-  currentLines.forEach(line=>{
-    const c=calcLine(line,bp,g.cvrRenew,g.cvrOntime,extra,useRenew,useOntime);
-    tM+=c.mep;tC+=c.cc;tRv+=c.rv;tOt+=c.ot;tF+=c.finalBP;
-    const cov=(line.coverage_dates||'').replace(' To ','→');
-    const tr=document.createElement('tr');
-    tr.innerHTML=`
-      <td><strong>${line.part_number||'—'}</strong></td>
-      <td style="font-size:11px">${(line.part_description||'').substring(0,35)}...</td>
-      <td style="font-size:11px;white-space:nowrap">${cov}</td>
-      <td style="text-align:right">${line.quantity||1}</td>
-      <td style="text-align:right;color:#64748B">$${fmt(c.mep)}</td>
-      <td style="text-align:right;color:#DC2626">-$${fmt(c.mep-c.cc)}</td>
-      <td style="text-align:right;color:#16A34A">${useRenew?'-$'+fmt(c.rv):'—'}</td>
-      <td style="text-align:right;color:#16A34A">${useOntime&&line.ontime?'-$'+fmt(c.ot):'—'}</td>
-      <td style="text-align:right;font-weight:600">$${fmt(c.finalBP)}</td>`;
-    tbody.appendChild(tr);
-  });
-  const tr=document.createElement('tr');
-  tr.className='tot-row';
-  tr.innerHTML=`<td colspan="4" style="text-align:right">Total</td>
-    <td style="text-align:right">$${fmt(tM)}</td>
-    <td style="text-align:right">-$${fmt(tM-tC)}</td>
-    <td style="text-align:right">-$${fmt(tRv)}</td>
-    <td style="text-align:right">-$${fmt(tOt)}</td>
-    <td style="text-align:right">$${fmt(tF)}</td>`;
-  tbody.appendChild(tr);
-  document.getElementById('d-scards').innerHTML=`
-    <div class="sc"><div class="sc-lbl">Precio MEP total</div><div class="sc-val">$${fmt(tM)}</div></div>
-    <div class="sc"><div class="sc-lbl">Nota de descuento</div><div class="sc-val g">$${fmt(tM-tF)}</div></div>
-    <div class="sc"><div class="sc-lbl">Precio final canal</div><div class="sc-val b">$${fmt(tF)}</div></div>`;
+function showFileTab(i){
+  activeFileTab=i;
+  for(let j=0;j<3;j++){
+    const tab=document.getElementById('ftab-'+j);
+    const panel=document.getElementById('fpanel-'+j);
+    if(tab)tab.classList.toggle('active',j===i);
+    if(panel)panel.classList.toggle('hidden',j!==i);
+  }
 }
 
 async function downloadBulk(){
@@ -640,7 +754,7 @@ async function downloadQuote(){
   saveCurrentParams();
   const btn=document.getElementById('btn-dl');
   const status=document.getElementById('dl-status');
-  btn.disabled=true;btn.innerHTML='<span class="spin"></span> Generando...';status.textContent='';
+  btn.disabled=true;btn.innerHTML='<span class="spin"></span> Descargando...';status.textContent='';
   try{
     const g=getG();
     const bp=parseFloat(document.getElementById('e-bp').value)||g.bp;
@@ -666,24 +780,7 @@ async function downloadQuote(){
     status.textContent='✓ Descargado';
     updateReviewHint();renderList();
   }catch(e){status.textContent='Error: '+e.message;}
-  finally{btn.disabled=false;btn.innerHTML='⬇ Descargar PDF + Excel';}
-}
-
-async function downloadPlanilla(){
-  const btn=document.getElementById('btn-planilla');
-  const status=document.getElementById('dl-status');
-  btn.disabled=true;btn.textContent='Generando...';
-  try{
-    const fd=new FormData();fd.append('file',selectedFile);fd.append('quote_filter',currentQ);
-    const res=await fetch(API+'/renewals/generate-planilla',{method:'POST',body:fd});
-    if(!res.ok)throw new Error('Error');
-    const blob=await res.blob();
-    const url=URL.createObjectURL(blob);
-    const a=document.createElement('a');
-    a.download=`Planilla_IBM_${currentQ}.xlsx`;a.href=url;a.click();URL.revokeObjectURL(url);
-    status.textContent='✓ Planilla descargada';
-  }catch(e){status.textContent='Error: '+e.message;}
-  finally{btn.disabled=false;btn.innerHTML='⬇ Planilla IBM';}
+  finally{btn.disabled=false;btn.innerHTML='⬇ Descargar ZIP';}
 }
 
 function toggleAudit(){
