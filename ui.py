@@ -858,6 +858,29 @@ function buildAuditTable(){
   });
 }
 
+// Cargar tasas vigentes del servidor al iniciar
+async function loadRates(){
+  try{
+    const res = await fetch(API+'/renewals/rates');
+    const r = await res.json();
+    if(!r.success) return;
+    document.getElementById('g-bp').value          = r.bp_margin;
+    document.getElementById('g-ingram').value      = r.ingram_margin;
+    document.getElementById('g-cvr-renew').value   = r.cvr_renew_bp;
+    document.getElementById('g-cvr-renew-ing').value = r.cvr_renew_ingram;
+    document.getElementById('g-cvr-ontime').value  = r.cvr_ontime_bp;
+    document.getElementById('g-cvr-ontime-ing').value = r.cvr_ontime_ingram;
+    // Mostrar banner si estamos en vigencia jul2026
+    if(r.rate_key === 'jul2026'){
+      const banner = document.createElement('div');
+      banner.style.cssText = 'background:#EBF3FF;border:1px solid #93C5FD;border-radius:8px;padding:8px 14px;font-size:12px;color:#1e40af;margin-bottom:12px';
+      banner.innerHTML = '📅 <strong>Tasas vigentes desde 1 Jul 2026:</strong> Margen BP 2% · Ingram 1% · CVR Renew Ingram 1%';
+      document.querySelector('.main').prepend(banner);
+    }
+  }catch(e){ console.warn('No se pudieron cargar tasas:', e); }
+}
+loadRates();
+
 document.getElementById('xml-file').addEventListener('change',e=>{if(e.target.files[0])handleFile(e.target.files[0]);});
 const dz=document.getElementById('dropzone');
 dz.addEventListener('dragover',e=>{e.preventDefault();dz.classList.add('drag');});
